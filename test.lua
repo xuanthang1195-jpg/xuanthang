@@ -12,7 +12,6 @@ local playerGui = player:WaitForChild("PlayerGui")
 local Config = {
     AutoFarm = false,
     AutoSkill = true,
-    DisableSkillEffects = true,
     AutoAttack = true,
     AutoAvoid = false,
     AutoProgressStage = true,
@@ -86,7 +85,6 @@ local State = {
         Q = 0,
         E = 0,
         R = 0,
-        G = 0,
     },
 
     StageBusy = false,
@@ -152,7 +150,6 @@ local function getSaveData()
     return {
         AutoFarm = Config.AutoFarm,
         AutoSkill = Config.AutoSkill,
-        DisableSkillEffects = Config.DisableSkillEffects,
         AutoAttack = Config.AutoAttack,
         AutoAvoid = Config.AutoAvoid,
         AutoProgressStage = Config.AutoProgressStage,
@@ -196,7 +193,7 @@ local function loadSettings()
 
         if type(data) == "table" then
             for _, key in ipairs({
-                "AutoFarm", "AutoSkill", "DisableSkillEffects", "AutoAttack", "AutoAvoid", "Debug",
+                "AutoFarm", "AutoSkill", "AutoAttack", "AutoAvoid", "Debug",
                 "AutoProgressStage", "OrbitRadius", "OrbitSpeed",
                 "AboveHeight", "UndergroundHeight", "UndergroundMode",
                 "KillAuraRadius", "TargetSearchRadius", "DoorInteractDistance", "DoorOpenWait", "ExitSearchRadius", "ExitRetryDelay", "PerformanceMode", "SafeMode",
@@ -1272,51 +1269,7 @@ local SkillCooldownConfig = {
     Q = 0.70,
     E = 0.70,
     R = 1.50,
-    Four = 2.00, -- Client-side input debounce; the game controls the real cooldown.
 }
-
--- Optional client-side suppression of obvious skill VFX. This does not disable
--- server-side damage or guarantee that every game's custom effect is hidden.
-local hiddenSkillEffects = {}
-local function looksLikeSkillEffect(instance)
-    local name = string.lower(instance.Name or "")
-    return name:find("skill", 1, true) ~= nil
-        or name:find("vfx", 1, true) ~= nil
-        or name:find("effect", 1, true) ~= nil
-        or name:find("attackeffect", 1, true) ~= nil
-end
-
-local function suppressSkillEffect(instance)
-    if not Config.DisableSkillEffects or not instance or not instance.Parent or not looksLikeSkillEffect(instance) then
-        return
-    end
-    local ok, enabled = pcall(function() return instance.Enabled end)
-    if ok and type(enabled) == "boolean" then
-        if hiddenSkillEffects[instance] == nil then hiddenSkillEffects[instance] = enabled end
-        pcall(function() instance.Enabled = false end)
-    elseif instance:IsA("BasePart") then
-        if hiddenSkillEffects[instance] == nil then hiddenSkillEffects[instance] = instance.LocalTransparencyModifier end
-        pcall(function() instance.LocalTransparencyModifier = 1 end)
-    end
-end
-
-local function applySkillEffectSetting()
-    if Config.DisableSkillEffects then
-        for _, instance in ipairs(workspace:GetDescendants()) do suppressSkillEffect(instance) end
-    else
-        for instance, original in pairs(hiddenSkillEffects) do
-            if instance and instance.Parent then
-                pcall(function()
-                    if instance:IsA("BasePart") then instance.LocalTransparencyModifier = original
-                    elseif instance.Enabled ~= nil then instance.Enabled = original end
-                end)
-            end
-        end
-        table.clear(hiddenSkillEffects)
-    end
-end
-
-connect(workspace.DescendantAdded, suppressSkillEffect)
 
 local function useSkills()
     if not Config.AutoFarm
@@ -1328,8 +1281,7 @@ local function useSkills()
 
     local now = os.clock()
 
-    -- Roblox Enum.KeyCode names the number 4 key as "Four".
-    for _, key in ipairs({"E", "Q", "R", "Four"}) do
+    for _, key in ipairs({"E", "Q", "R"}) do
         if now >= State.SkillCooldowns[key] then
             pressKey(key)
             State.SkillCooldowns[key] = now + SkillCooldownConfig[key]
@@ -2075,11 +2027,7 @@ debugPanelText.TextXAlignment = Enum.TextXAlignment.Left
 debugPanelText.TextYAlignment = Enum.TextYAlignment.Top
 debugPanelText.Parent = debugPanel
 
-createSection(910, "SKILLS", "COMBAT OPTIONS")
-local autoSkillButton = createButton("AUTO SKILL", 932, 40)
-local skillEffectsButton = createButton("HIDE SKILL VFX", 978, 40)
-
-content.CanvasSize = UDim2.fromOffset(0, 1040)
+content.CanvasSize = UDim2.fromOffset(0, 910)
 
 -- ================================================================
 -- APPEARANCE WINDOW
@@ -2397,14 +2345,6 @@ local function setAutoAttackVisual()
     paintButton(autoAttackButton, autoAttackButton:FindFirstChildOfClass("UIStroke"), "AUTO ATTACK", Config.AutoAttack and "ON" or "OFF", Config.AutoAttack)
 end
 
-local function setAutoSkillVisual()
-    paintButton(autoSkillButton, autoSkillButton:FindFirstChildOfClass("UIStroke"), "AUTO SKILL (+4)", Config.AutoSkill and "ON" or "OFF", Config.AutoSkill)
-end
-
-local function setSkillEffectsVisual()
-    paintButton(skillEffectsButton, skillEffectsButton:FindFirstChildOfClass("UIStroke"), "HIDE SKILL VFX", Config.DisableSkillEffects and "ON" or "OFF", Config.DisableSkillEffects)
-end
-
 local function setDebugVisual()
     paintButton(debugButton, debugButton:FindFirstChildOfClass("UIStroke"), "DEBUG MONITOR", Config.Debug and "ON" or "OFF", Config.Debug)
     debugPanel.Visible = Config.Debug
@@ -2718,20 +2658,6 @@ connect(autoAttackButton.MouseButton1Click, function()
     Config.AutoAttack = not Config.AutoAttack
     _G.AutoAttack = Config.AutoAttack
     setAutoAttackVisual()
-    saveSettings()
-end)
-
-connect(autoSkillButton.MouseButton1Click, function()
-    Config.AutoSkill = not Config.AutoSkill
-    _G.AutoSkill = Config.AutoSkill
-    setAutoSkillVisual()
-    saveSettings()
-end)
-
-connect(skillEffectsButton.MouseButton1Click, function()
-    Config.DisableSkillEffects = not Config.DisableSkillEffects
-    applySkillEffectSetting()
-    setSkillEffectsVisual()
     saveSettings()
 end)
 
@@ -3125,16 +3051,6 @@ local function unload()
     disconnectList(CharacterConnections)
     disconnectList(Connections)
 
-    for instance, original in pairs(hiddenSkillEffects) do
-        if instance and instance.Parent then
-            pcall(function()
-                if instance:IsA("BasePart") then instance.LocalTransparencyModifier = original
-                elseif instance.Enabled ~= nil then instance.Enabled = original end
-            end)
-        end
-    end
-    table.clear(hiddenSkillEffects)
-
     if ScreenGui then
         ScreenGui:Destroy()
     end
@@ -3159,9 +3075,6 @@ end)
 setToggleVisual()
 setModeVisual()
 setAutoAttackVisual()
-setAutoSkillVisual()
-setSkillEffectsVisual()
-applySkillEffectSetting()
 setAutoAvoidVisual()
 setPerformanceVisual()
 setSafeModeVisual()
