@@ -1,5 +1,6 @@
 -- ====================================================================
--- IRON SOUL SCRIPT V6 BY BUGON
+-- IRON SOUL SCRIPT V6 CỦA BUGON
+-- Bản dịch tiếng Việt: chú thích, giao diện và thông báo; giữ nguyên cấu trúc/chức năng gốc
 -- ====================================================================
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -12,7 +13,7 @@ local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
 
-print("[Bugon V6] bootstrap started")
+print("[Bugon V6] đã bắt đầu khởi tạo")
 
 local FolderNama = "IronSoulConfig"
 local FileNama = FolderNama .. "/YasirConfigV3.json"
@@ -316,7 +317,17 @@ AutoSkillNetworkFlow = AutoSkillNetworkFlow or {
     CaptureUntil = 0,
     Replaying = false
 }
-AutoSkillNetworkFlow.Remote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("PlayerActionRE")
+-- Không chặn toàn bộ script nếu Remote chưa xuất hiện; việc chờ được chạy nền.
+AutoSkillNetworkFlow.Remote = nil
+task.spawn(function()
+    local RemotesFolder = ReplicatedStorage:WaitForChild("Remotes", 10)
+    if RemotesFolder then
+        AutoSkillNetworkFlow.Remote = RemotesFolder:WaitForChild("PlayerActionRE", 10)
+    end
+    if not AutoSkillNetworkFlow.Remote then
+        warn("[Bugon V6] Không tìm thấy PlayerActionRE sau 10 giây; một số tính năng kỹ năng có thể không hoạt động.")
+    end
+end)
 
 local AutoStartWorldId = Config.AutoStartWorldId
 local AutoStartDifficulty = Config.AutoStartDifficulty
@@ -695,7 +706,7 @@ AutoPotion.Selected = Config.AutoPotionSelected
 AutoPetExpedition.SlotOrder = Config.PetExpeditionSlotOrder
 AutoSkillNetworkFlow.Multiplier = Config.AutoSkillNetworkMultiplier
 
--- KONTROL SCRIPT MASTER
+-- ĐIỀU KHIỂN SCRIPT CHÍNH
 _G.AutoFarm = true
 _G.AutoSkill = true
 _G.RadiusPutar = FarmPosition.OrbitRadius
@@ -737,10 +748,10 @@ task.spawn(function()
     end
     local PlaceId = Config.LobbyPlaceId > 0 and Config.LobbyPlaceId or game.PlaceId
     if PlaceId <= 0 then
-        warn("[Bugon V6] character load timeout; no place id")
+        warn("[Bugon V6] hết thời gian chờ tải nhân vật; không có mã địa điểm")
         return
     end
-    warn("[Bugon V6] character load timeout; rejoining " .. tostring(PlaceId))
+    warn("[Bugon V6] hết thời gian chờ tải nhân vật; đang vào lại " .. tostring(PlaceId))
     pcall(function()
         TeleportService:Teleport(PlaceId, LocalPlayer)
     end)
@@ -1318,7 +1329,7 @@ local function TryAutoBuyGoldShopOnce()
     local RemoteEvent = GetConsumableShopRemoteEvent()
     for ItemKey, Item in pairs(Items) do
         if type(Item) == "table" and Item.State == "normal" and AutoBuyWantedItemIds[Item.ItemId] then
-            print("[AutoBuy] Buying " .. tostring(Item.ItemId) .. " via " .. tostring(ItemKey))
+            print("[AutoBuy] Đang mua " .. tostring(Item.ItemId) .. " qua " .. tostring(ItemKey))
             RemoteEvent:FireServer("BuyShopItem", "Gold", ItemKey)
             task.wait(AutoBuyDelay)
         end
@@ -1367,7 +1378,7 @@ local function RequestSeasonShopOpen()
     end
 
     LastSeasonShopOpenRequest = CurrentTime
-    print("[AutoSeasonBuy] Direct shop state unavailable; requesting ScreenSeasonPass data")
+    print("[AutoSeasonBuy] Không lấy được trạng thái cửa hàng trực tiếp; đang yêu cầu dữ liệu ScreenSeasonPass")
     ReplicatedStorage:WaitForChild("Framework"):WaitForChild("Features"):WaitForChild("TaskSystem"):WaitForChild(
         "TaskRE"):FireServer("UpdateTaskProgress", "OpenGUIWindow", "ScreenSeasonPass")
 end
@@ -1397,18 +1408,18 @@ local function TryBuySeasonShopId(shopData, shopId, source, shouldLogState)
 
     local IsWanted = AutoSeasonBuyWantedItemIds[ShopConfig.ItemId]
     if shouldLogState or IsWanted then
-        print("[AutoSeasonBuy] Loaded season " .. tostring(source) .. " " .. tostring(shopId) .. " item " ..
+        print("[AutoSeasonBuy] Đã tải mùa " .. tostring(source) .. " " .. tostring(shopId) .. " item " ..
                   tostring(ShopConfig.ItemId) .. " price " .. tostring(ShopConfig.Price))
     end
     if not IsWanted then
         return false
     end
     if IsSeasonShopIdBought(shopData, ShopConfig, shopId) then
-        print("[AutoSeasonBuy] Skip bought " .. tostring(ShopConfig.ItemId) .. " via " .. tostring(shopId))
+        print("[AutoSeasonBuy] Bỏ qua vật phẩm đã mua " .. tostring(ShopConfig.ItemId) .. " qua " .. tostring(shopId))
         return false
     end
 
-    print("[AutoSeasonBuy] Buying " .. tostring(ShopConfig.ItemId) .. " via " .. tostring(shopId))
+    print("[AutoSeasonBuy] Đang mua " .. tostring(ShopConfig.ItemId) .. " qua " .. tostring(shopId))
     GetSeasonShopRemoteEvent():FireServer("BuySeasonShopItem", shopId)
     task.wait(AutoSeasonBuyDelay)
     return true
@@ -1437,7 +1448,7 @@ local function TryAutoBuySeasonShopByData()
         FoundTarget = TryBuySeasonShopId(ShopData, ShopData.SpecialId, "special", ShouldLogState) or FoundTarget
     end
     if not FoundTarget and ShouldLogState then
-        print("[AutoSeasonBuy] No target item in season state; wanted RaceSpins or SeasonTicket")
+        print("[AutoSeasonBuy] Không có vật phẩm mục tiêu trong dữ liệu mùa; cần RaceSpins hoặc SeasonTicket")
     end
     return true
 end
@@ -1458,11 +1469,11 @@ local function TryAutoBuySeasonShopByGui()
         if ShopConfig and not SeenShopIds[ShopId] then
             HasSeasonShopSlot = true
             SeenShopIds[ShopId] = true
-            print("[AutoSeasonBuy] Loaded GUI slot " .. tostring(ShopId) .. " item " .. tostring(ShopConfig.ItemId) ..
+            print("[AutoSeasonBuy] Đã tải ô giao diện " .. tostring(ShopId) .. " item " .. tostring(ShopConfig.ItemId) ..
                       " price " .. tostring(ShopConfig.Price))
             if AutoSeasonBuyWantedItemIds[ShopConfig.ItemId] and not IsSeasonShopSlotBought(Obj) then
                 FoundTarget = true
-                print("[AutoSeasonBuy] Buying " .. tostring(ShopConfig.ItemId) .. " via " .. tostring(ShopId))
+                print("[AutoSeasonBuy] Đang mua " .. tostring(ShopConfig.ItemId) .. " qua " .. tostring(ShopId))
                 GetSeasonShopRemoteEvent():FireServer("BuySeasonShopItem", ShopId)
                 task.wait(AutoSeasonBuyDelay)
             end
@@ -1472,7 +1483,7 @@ local function TryAutoBuySeasonShopByGui()
     if not HasSeasonShopSlot then
         RequestSeasonShopOpen()
     elseif not FoundTarget then
-        print("[AutoSeasonBuy] No target item in current GUI shop; wanted RaceSpins or SeasonTicket")
+        print("[AutoSeasonBuy] Không có vật phẩm mục tiêu trong cửa hàng hiện tại; cần RaceSpins hoặc SeasonTicket")
     end
     return HasSeasonShopSlot
 end
@@ -3428,7 +3439,7 @@ local function UpdateSellPendingFromBackpack()
         local CurrentTime = os.clock()
         if (CurrentTime - LastOreBackpackFullLogAt) >= 5.0 then
             LastOreBackpackFullLogAt = CurrentTime
-            print("[AutoSell] Ore backpack full " .. tostring(Current) .. "/" .. tostring(Max) .. "; pending lobby sell")
+            print("[AutoSell] Túi quặng đã đầy " .. tostring(Current) .. "/" .. tostring(Max) .. "; đang chờ bán tại sảnh")
         end
     elseif SellPending and (SellPendingReason == "ore backpack full" or SellPendingReason == "sell blocked") then
         SellPending = false
@@ -3505,18 +3516,18 @@ end
 
 function AutoLobbyStartGate.TouchRoomPortal(Room, PortalPart, LogPrefix)
     if not firetouchinterest then
-        print(LogPrefix .. " firetouchinterest unavailable")
+        print(LogPrefix .. " không khả dụng firetouchinterest")
         return false
     end
 
     local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local RootPart = Character:FindFirstChild("HumanoidRootPart") or Character:WaitForChild("HumanoidRootPart", 3)
     if not RootPart or not PortalPart then
-        print(LogPrefix .. " Waiting free match room")
+        print(LogPrefix .. " Đang chờ phòng trận trống")
         return false
     end
 
-    print(LogPrefix .. " Touching " .. Room.Name .. " portal")
+    print(LogPrefix .. " Đang chạm " .. Room.Name .. " portal")
     local Direction = PortalPart.Position - RootPart.Position
     if Direction.Magnitude < 0.1 then
         Direction = RootPart.CFrame.LookVector
@@ -3644,7 +3655,7 @@ function AutoEndlessTower.TryJoin()
 
     local StartingRound, MaxRound = AutoEndlessTower.ResolveStartingRound()
     AutoEndlessTower.SetStatus("CREATING " .. Room.Name .. " · ROUND " .. tostring(StartingRound))
-    print("[AutoEndless] Creating " .. Room.Name .. " players=" .. tostring(AutoEndlessTower.MaxPlayers) ..
+    print("[AutoEndless] Đang tạo " .. Room.Name .. " số người chơi=" .. tostring(AutoEndlessTower.MaxPlayers) ..
               " start=" .. tostring(StartingRound) .. " max=" .. tostring(MaxRound))
     GetGameMatchRemoteEvent():FireServer("CreatRoom", "Endless1", 1, AutoEndlessTower.MaxPlayers, StartingRound)
     AutoStartPending = false
@@ -3746,7 +3757,7 @@ function AutoEndlessTower.TryStartRun()
         AutoEndlessExtraWeapon.SetStatus("EQUIPPED: " .. Candidate.Label)
         AutoEndlessExtraWeapon.ResetRequest()
         AutoEndlessTower.SetStatus("STARTING RUN")
-        print("[AutoEndless] Activating Equip Extra Weapon Start")
+        print("[AutoEndless] Activating Equip Vũ khí bổ sung Start")
         ClickGuiButton(StartButton)
         return true
     end
@@ -3815,7 +3826,7 @@ end
 local function PrepareScreenMatchForAutoStart(ScreenMatch)
     local WorldButton = FindAutoStartWorldButton(ScreenMatch)
     if not ClickGuiButton(WorldButton) then
-        print("[AutoStart] Waiting world tab " .. AutoStartWorldId)
+        print("[AutoStart] Đang chờ mục thế giới " .. AutoStartWorldId)
         return false
     end
     task.wait(0.35)
@@ -3831,13 +3842,13 @@ local function PrepareScreenMatchForAutoStart(ScreenMatch)
 
     local DiffButton = FindAutoStartDiffButton(ScreenMatch)
     if not ClickGuiButton(DiffButton) then
-        print("[AutoStart] Waiting diff tab " .. tostring(AutoStartDifficulty))
+        print("[AutoStart] Đang chờ mục độ khó " .. tostring(AutoStartDifficulty))
         return false
     end
     task.wait(0.35)
 
     if not SetAutoStartMatchCount(ScreenMatch) then
-        print("[AutoStart] Waiting match count " .. tostring(AutoStartMaxPlayers))
+        print("[AutoStart] Đang chờ số lượng người chơi " .. tostring(AutoStartMaxPlayers))
         return false
     end
 
@@ -3866,7 +3877,7 @@ local function TryAutoStartSoloDungeon()
         end
         ScreenMatch = WaitForScreenMatchVisible(2.5)
         if not ScreenMatch then
-            print("[AutoStart] Waiting ScreenMatch after portal")
+            print("[AutoStart] Đang chờ ScreenMatch sau khi qua cổng")
             return false
         end
     end
@@ -3876,11 +3887,11 @@ local function TryAutoStartSoloDungeon()
     end
 
     if not DungeonCatalog.ValidateAutoStartSelection(false) then
-        print("[AutoStart] No unlocked dungeon target")
+        print("[AutoStart] Không có phó bản mục tiêu nào đã mở khóa")
         return false
     end
 
-    print("[AutoStart] Creating solo " .. AutoStartWorldId .. " diff " ..
+    print("[AutoStart] Đang tạo solo " .. AutoStartWorldId .. " diff " ..
               tostring(AutoStartDifficulty))
     GetWorldRemoteEvent():FireServer("SelectWorld", AutoStartWorldId, AutoStartDifficulty)
     task.wait(0.35)
@@ -3891,7 +3902,7 @@ local function TryAutoStartSoloDungeon()
         Config.DeathRestartPending = false
         SaveConfig()
     end
-    print("[AutoStart] Create room fired")
+    print("[AutoStart] Đã gửi yêu cầu tạo phòng")
     return true
 end
 
@@ -3909,7 +3920,7 @@ local function QueueAutoStartSoloDungeon()
         RejoinWatchdog.Log("AUTO_START_QUEUED")
         SaveConfig()
     end
-    print("[AutoStart] Queued solo dungeon restart")
+    print("[AutoStart] Đã xếp hàng khởi động lại phó bản một mình")
     TryAutoStartSoloDungeon()
 end
 
@@ -3938,7 +3949,7 @@ function AutoGiveupFlow.ProcessLobbyRestart()
         return
     end
 
-    print("[Auto Giveup] Lobby reached; queueing dungeon restart")
+    print("[Tự động bỏ cuộc] Đã về sảnh; đang xếp hàng khởi động lại phó bản")
     QueueAutoStartSoloDungeon()
 end
 
@@ -3949,7 +3960,7 @@ local function RequestAutoSellContext()
     end
 
     LastAutoSellContextRequest = CurrentTime
-    print("[AutoSell] Requesting ScreenEquipSell context")
+    print("[AutoSell] Đang yêu cầu ngữ cảnh ScreenEquipSell")
     local TaskRemote = GetTaskRemoteEvent()
     TaskRemote:FireServer("UpdateTaskProgress", "DialogNpc", "EquipmentSellNpc1|1")
     TaskRemote:FireServer("UpdateTaskProgress", "DialogNpc", "EquipmentSellNpc1|0")
@@ -4005,10 +4016,10 @@ local function TryAutoSellOresOnce()
         local AfterCount = tonumber(AfterOres[OreId]) or 0
         if AfterCount <= 0 then
             AnySold = true
-            print("[AutoSell] Confirmed sold " .. tostring(OreId))
+            print("[AutoSell] Đã xác nhận bán " .. tostring(OreId))
         elseif AfterCount < BeforeCount then
             AnySold = true
-            print("[AutoSell] Partially sold " .. tostring(OreId) .. " before " .. tostring(BeforeCount) ..
+            print("[AutoSell] Đã bán một phần " .. tostring(OreId) .. " before " .. tostring(BeforeCount) ..
                       " after " .. tostring(AfterCount))
         else
             local Current, Max = GetOreBackpackUsage()
@@ -4016,7 +4027,7 @@ local function TryAutoSellOresOnce()
                 SellPending = true
                 SellPendingReason = "sell blocked"
             end
-            print("[AutoSell] Still owned " .. tostring(OreId) .. " x" .. tostring(AfterCount) ..
+            print("[AutoSell] Vẫn còn sở hữu " .. tostring(OreId) .. " x" .. tostring(AfterCount) ..
                       " after sell attempt")
         end
     end
@@ -4026,7 +4037,7 @@ local function TryAutoSellOresOnce()
         if Max <= 0 or Current < Max then
             SellPending = false
             SellPendingReason = nil
-            print("[AutoSell] Pending sell cleared; ore backpack " .. tostring(Current) .. "/" .. tostring(Max))
+            print("[AutoSell] Đã xóa trạng thái chờ bán; túi quặng " .. tostring(Current) .. "/" .. tostring(Max))
             QueueAutoStartSoloDungeon()
         end
     end
@@ -4336,7 +4347,7 @@ task.spawn(function()
 end)
 
 -- =========================================================================
--- SYSTEM UTILITY: [BARU] PERFECT FORGE MODULE VIA METAMETHOD INJECTION
+-- TIỆN ÍCH HỆ THỐNG: MÔ-ĐUN RÈN HOÀN HẢO QUA CAN THIỆP METAMETHOD
 -- =========================================================================
 local envRegistry = getfenv()
 local setBypass = envRegistry["hookmetamethod"]
@@ -4349,7 +4360,7 @@ if type(setBypass) == "function" and type(getMethod) == "function" then
         local argumentCount = select("#", ...)
         local args = {...}
 
-        -- Hanya berjalan jika fitur di UI bernilai TRUE dan memanggil Remote ForgeRF
+        -- Chỉ chạy khi tính năng trên giao diện được bật và gọi Remote ForgeRF
         if _G.PerfectForge and self.Name == "ForgeRF" then
             for _, arg in pairs(args) do
                 if type(arg) == "table" and arg.Rating ~= nil then
@@ -4386,7 +4397,7 @@ end
 
 local function UpdateStatsLabel()
     if StatsLabel then
-        StatsLabel.Text = "CHEST DESTROYED: " .. tostring(ChestDestroyedCount) ..
+        StatsLabel.Text = "RƯƠNG ĐÃ PHÁ: " .. tostring(ChestDestroyedCount) ..
                               "\nEGG TRIGGERED: " .. tostring(EggTriggeredCount) ..
                               "\nORE: " .. tostring(OreStats.Current) .. "/" .. tostring(OreStats.Max) ..
                               "\nREJOIN: " .. tostring(RejoinWatchdog.Status)
@@ -4445,7 +4456,7 @@ if not _G.AntiAFK_Loaded then
     end)
 end
 
--- PLATFORM ANTI-JATUH
+-- NỀN CHỐNG RƠI
 local PlatformPart = Instance.new("Part")
 PlatformPart.Name = "AntiFallPlatform"
 PlatformPart.Size = Vector3.new(10, 1, 10)
@@ -4502,7 +4513,7 @@ local function TriggerPrompt(prompt)
     return true
 end
 
--- FUNGSI HIT TOMBOL REPLAY VIA GUI SELECTION
+-- HÀM NHẤN NÚT CHƠI LẠI QUA LỰA CHỌN GIAO DIỆN
 local function EksekusiKlikReplay(tombol)
     if not tombol then
         return
@@ -4532,7 +4543,7 @@ local function EksekusiKlikReplay(tombol)
     end)
 end
 
--- AUTO SKILL DENGAN COOLDOWN
+-- TỰ ĐỘNG DÙNG KỸ NĂNG THEO THỜI GIAN HỒI
 local LastUsed = {
     Q = 0,
     E = 0,
@@ -4663,7 +4674,7 @@ local function GetSkillButton(key)
 end
 
 local function TriggerSkillButton(key)
-    -- ponytail: 8s covers current multi-stage skills; use stage-completion tracking if longer skills appear.
+    -- Thời gian chờ 8 giây bao phủ các kỹ năng nhiều giai đoạn hiện tại; nếu xuất hiện kỹ năng dài hơn, hãy theo dõi trạng thái hoàn tất từng giai đoạn.
     AutoSkillVisualFlow.SuppressUntil = os.clock() + 8
     AutoSkillNetworkFlow.CaptureUntil = os.clock() + 8
     local Button = GetSkillButton(key)
@@ -4869,7 +4880,7 @@ task.spawn(function()
     end
 end)
 
--- ZERO-SPIKE JUMP SYSTEM
+-- HỆ THỐNG NHẢY GIẢM GIẬT
 RunService.Heartbeat:Connect(function()
     if _G.AutoFarm and not RejoinWatchdog.BlocksAutomation() and not IsInLobby() and LocalPlayer.Character and Target and
         not IsExtractingEgg and not IsEnteringPortal then
@@ -4885,7 +4896,7 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- STATE-GLITCH IMMUNITY LOOP
+-- VÒNG LẶP CHỐNG LỖI TRẠNG THÁI
 task.spawn(function()
     while true do
         task.wait(0.2)
@@ -5065,10 +5076,10 @@ local function TriggerEggIfNeeded(target, kind)
     LastTriggeredEgg = target
     local Prompt = GetEggPrompt(target)
     if Prompt then
-        print("[Egg] Triggering ProximityPrompt...")
+        print("[Egg] Đang kích hoạt ProximityPrompt...")
         TriggerPrompt(Prompt)
     else
-        print("[Egg] Prompt not found. Holding F 3s fallback...")
+        print("[Egg] Không tìm thấy lời nhắc tương tác. Dự phòng bằng cách giữ F trong 3 giây...")
         HoldKey("F", 3.0)
     end
     IsExtractingEgg = false
@@ -5076,7 +5087,7 @@ local function TriggerEggIfNeeded(target, kind)
 end
 
 -- =========================================================================
--- [FINAL PERFECT VERSION] AUTO WAVE TRIGGER & STAGE PORTAL PROGRESSION
+-- [BẢN HOÀN CHỈNH] TỰ KÍCH HOẠT SÓNG VÀ DI CHUYỂN QUA CỔNG THEO GIAI ĐOẠN
 -- =========================================================================
 local LastWaveTriggerAttempt = 0
 local LastMapPath = ""
@@ -5110,7 +5121,7 @@ local function IsPortalAlreadyUsed(PortalPart)
         return false
     end
 
-    -- Portal lama sudah dihancurkan/diganti oleh game
+    -- Cổng cũ đã bị trò chơi phá hủy hoặc thay thế
     if LastPortal and not LastPortal.Parent then
         LastPortal = nil
         LastPortalPosition = nil
@@ -5118,8 +5129,8 @@ local function IsPortalAlreadyUsed(PortalPart)
         return false
     end
 
-    -- FIX: Jika waktu percobaan terakhir sudah lewat dari durasi cooldown (8 detik),
-    -- anggap portal sudah kedaluwarsa sehingga bot diizinkan untuk mencoba interaksi ulang.
+    -- SỬA: Nếu lần thử trước đã vượt thời gian hồi chiêu (8 giây),
+    -- coi như cổng đã hết hạn để bot có thể thử tương tác lại.
     if os.clock() - LastPortalAttemptTime > PORTAL_COOLDOWN_DURATION then
         LastPortal = nil
         LastPortalPosition = nil
@@ -5127,12 +5138,12 @@ local function IsPortalAlreadyUsed(PortalPart)
         return false
     end
 
-    -- Instance portal sama dan masih dalam masa tunggu cooldown
+    -- Đây là cùng một đối tượng cổng và vẫn trong thời gian chờ hồi chiêu
     if LastPortal == PortalPart then
         return true
     end
 
-    -- Instance mungkin diganti, tetapi posisinya masih sama (Anti-spam posisi)
+    -- Đối tượng có thể đã bị thay thế nhưng vẫn ở cùng vị trí (chống spam vị trí)
     if LastPortalPosition then
         local PositionDifference = (PortalPart.Position - LastPortalPosition).Magnitude
         if PositionDifference <= SAME_PORTAL_POSITION_TOLERANCE then
@@ -5174,7 +5185,7 @@ local function TriggerPortalInteraction(MyRoot, PortalPart, UseTouchTrigger)
         MyRoot.CFrame = CFrame.new(PortalPart.Position + (Direction * 2) + Vector3.new(0, 1, 0))
     end
 
-    -- Pindahkan karakter ke trigger portal dan fire touch event asli.
+    -- Di chuyển nhân vật đến vùng kích hoạt cổng và gọi sự kiện chạm gốc.
     WakePortalTouch()
     MyRoot.AssemblyAngularVelocity = Vector3.zero
 
@@ -5182,7 +5193,7 @@ local function TriggerPortalInteraction(MyRoot, PortalPart, UseTouchTrigger)
         TouchPortal()
     end
 
-    -- Tekan Shift + F
+    -- Nhấn Shift + F
     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
 
     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
@@ -5220,7 +5231,7 @@ local function TeleportToNextStagePortal()
     end
 
     -- =========================================================
-    -- DETEKSI PERGANTIAN MAP / PLAY AGAIN
+    -- PHÁT HIỆN ĐỔI BẢN ĐỒ / CHƠI LẠI
     -- =========================================================
 
     local CurrentWorld = workspace:FindFirstChild("World")
@@ -5245,7 +5256,7 @@ local function TeleportToNextStagePortal()
     end
 
     -- =========================================================
-    -- DETEKSI MODE ENDLESS TOWER
+    -- PHÁT HIỆN CHẾ ĐỘ THÁP VÔ TẬN
     -- =========================================================
 
     local IsEndlessTower = false
@@ -5255,7 +5266,7 @@ local function TeleportToNextStagePortal()
     end
 
     -- =========================================================
-    -- CARI WAVE SPAWN TOUCH
+    -- TÌM VÙNG CHẠM XUẤT HIỆN SÓNG
     -- =========================================================
 
     local WorldEnemys = workspace:FindFirstChild("WorldEnemys")
@@ -5280,7 +5291,7 @@ local function TeleportToNextStagePortal()
     end
 
     -- =========================================================
-    -- STEP 1: TRIGGER SENSOR WAVE
+    -- BƯỚC 1: KÍCH HOẠT CẢM BIẾN SÓNG
     -- =========================================================
 
     if WaveSpawnTouch and HasActiveWaveInterest then
@@ -5334,18 +5345,18 @@ local function TeleportToNextStagePortal()
         end
     end
 
-    -- Jangan mencari portal selama wave masih aktif
+    -- Không tìm cổng khi đợt quái vẫn đang diễn ra
     if HasActiveWaveInterest then
         return
     end
 
-    -- Tunggu map selesai dimuat
+    -- Chờ bản đồ tải xong
     if os.clock() < MatchLoadTimer then
         return
     end
 
     -- =========================================================
-    -- STEP 2: SCANNING PORTAL
+    -- BƯỚC 2: QUÉT CỔNG
     -- =========================================================
 
     local BestPortalPart = nil
@@ -5372,12 +5383,12 @@ local function TeleportToNextStagePortal()
                         ParentName = string.lower(Object.Parent.Name)
                     end
 
-                    -- Abaikan collision part umum
+                    -- Bỏ qua các bộ phận va chạm thông thường
                     if string.find(LowerName, "collide") then
                         CurrentScore = -100
                     end
 
-                    -- Hindari MapTeleport pada endless tower
+                    -- Tránh MapTeleport trong Tháp Vô Tận
                     if IsEndlessTower and string.find(LowerName, "mapteleport") then
                         CurrentScore = -100
                     end
@@ -5398,7 +5409,7 @@ local function TeleportToNextStagePortal()
                             CurrentScore = CurrentScore + 4
                         end
 
-                        -- Memiliki trigger
+                        -- Có vùng kích hoạt
                         CurrentScore = CurrentScore + 3
 
                         if LowerName == "root" then
@@ -5435,7 +5446,7 @@ local function TeleportToNextStagePortal()
         RequiredScore = 3
     end
 
-    -- Tidak menemukan portal valid
+    -- Không tìm thấy cổng hợp lệ
     if not BestPortalPart or HighestScore < RequiredScore then
 
         if IsEndlessTower then
@@ -5446,13 +5457,13 @@ local function TeleportToNextStagePortal()
         return
     end
 
-    -- Portal yang sama sudah pernah digunakan
+    -- Cổng này đã được sử dụng trước đó
     if IsPortalAlreadyUsed(BestPortalPart) then
         return
     end
 
     -- =========================================================
-    -- STEP 3: MASUK PORTAL
+    -- BƯỚC 3: VÀO CỔNG
     -- =========================================================
 
     IsEnteringPortal = true
@@ -5474,8 +5485,8 @@ local function TeleportToNextStagePortal()
 
         PortalCooldown = false
 
-        -- Hanya hapus portal terakhir apabila instance lama
-        -- memang sudah hilang dari workspace.
+        -- Chỉ xóa cổng cuối cùng nếu đối tượng cũ
+        -- thực sự đã biến mất khỏi workspace.
         if LastPortal and not LastPortal.Parent then
             LastPortal = nil
             LastPortalPosition = nil
@@ -5484,7 +5495,7 @@ local function TeleportToNextStagePortal()
     end)
 end
 
--- INTERCEPTOR SCAN REPLAY DEEP AREA
+-- BỘ QUÉT VÙNG SÂU ĐỂ CHẶN LỆNH CHƠI LẠI
 local function IsGuiVisible(obj)
     if not obj or not obj.Parent then
         return false
@@ -5564,7 +5575,7 @@ local function ScanAndHandleDeath()
             AutoGiveupFlow.LastReturnRequestAt = CurrentTime
             Config.DeathRestartPending = _G.AutoFarm and _G.AutoReplay
             SaveConfig()
-            print("[Auto Giveup] Settlement ready; returning to lobby")
+            print("[Tự động bỏ cuộc] Đã sẵn sàng kết toán; đang quay về sảnh")
             EksekusiKlikReplay(ReturnButton)
         end
         return true
@@ -5574,14 +5585,14 @@ local function ScanAndHandleDeath()
         AutoGiveupFlow.LastExitRequestAt = CurrentTime
         local ExitButton = GetGiveUpExitButton()
         if not AutoGiveupFlow.ExitButtonTried and ExitButton then
-            print("[Auto Giveup] Dead detected; activating PlayerRevive ExitBtn")
+            print("[Tự động bỏ cuộc] Phát hiện nhân vật đã chết; đang kích hoạt ExitBtn của PlayerRevive")
             AutoGiveupFlow.ExitButtonTried = true
             AutoGiveupFlow.AwaitingSettlement = true
             EksekusiKlikReplay(ExitButton)
         else
             local Remote = AutoGiveupFlow.GetRemote()
             if Remote then
-                print("[Auto Giveup] ExitBtn did not open settlement; requesting ExitSettlement fallback")
+                print("[Tự động bỏ cuộc] ExitBtn không mở kết toán; đang thử phương án dự phòng ExitSettlement")
                 AutoGiveupFlow.AwaitingSettlement = true
                 Remote:FireServer("ExitSettlement")
             end
@@ -5610,7 +5621,7 @@ local function ScanAndExecuteReplay()
     if BackpackFull then
         local ReturnButton = GetReturnToLobbyButton()
         if ReturnButton and IsGuiVisible(ReturnButton) then
-            print("[Auto Replay] Sell pending (" .. tostring(SellPendingReason or "unknown") ..
+            print("[Tự động chơi lại] Sell pending (" .. tostring(SellPendingReason or "unknown") ..
                       "); returning to lobby before replay")
             Target = nil
             task.wait(5.0)
@@ -5649,12 +5660,12 @@ local function ScanAndExecuteReplay()
     end
 
     if ReplayButton then
-        print("[Auto Replay] Reward settle delay sebelum re-run...")
+        print("[Tự động chơi lại] Đang chờ kết toán phần thưởng trước khi chạy lại...")
         Target = nil
         task.wait(5.0)
 
         if HasVictoryUi(PlayerGui:GetDescendants()) and IsGuiVisible(ReplayButton) then
-            print("[Auto Replay] Target Tombol Terkunci. Mengeksekusi Re-Run...")
+            print("[Tự động chơi lại] Đã khóa nút mục tiêu. Đang thực hiện chạy lại...")
             EksekusiKlikReplay(ReplayButton)
             task.wait(8.0)
         end
@@ -5849,7 +5860,7 @@ RunService.Stepped:Connect(function()
 end)
 
 -- ====================================================================
--- PERBAIKAN & PENAMBAHAN MENU DUAL BUTTON + TOGGLE REPLAY BUTTON
+-- SỬA LỖI VÀ BỔ SUNG MENU HAI NÚT + NÚT BẬT/TẮT CHƠI LẠI
 -- ====================================================================
 local ScreenGui = Instance.new("ScreenGui")
 local MasterButton = Instance.new("TextButton")
@@ -5880,7 +5891,7 @@ MasterButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
 MasterButton.Position = UDim2.new(0.05, 0, 0.2, 0)
 MasterButton.Size = UDim2.new(0, 160, 0, 40)
 MasterButton.Font = Enum.Font.SourceSansBold
-MasterButton.Text = "SCRIPT: ON"
+MasterButton.Text = "SCRIPT: BẬT"
 MasterButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 MasterButton.TextSize = 16
 MasterButton.BorderSizePixel = 2
@@ -5893,20 +5904,20 @@ ModeButton.BackgroundColor3 = FarmPosition.VerticalPosition == "Ground" and Colo
 ModeButton.Position = UDim2.new(0.05, 0, 0.27, 0)
 ModeButton.Size = UDim2.new(0, 160, 0, 40)
 ModeButton.Font = Enum.Font.SourceSansBold
-ModeButton.Text = FarmPosition.VerticalPosition == "Ground" and "MODE: GROUND" or
+ModeButton.Text = FarmPosition.VerticalPosition == "Ground" and "CHẾ ĐỘ: MẶT ĐẤT" or
                       (_G.UndergroundMode and "MODE: UNDERGROUND" or "MODE: ABOVE MONSTER")
 ModeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ModeButton.TextSize = 14
 ModeButton.BorderSizePixel = 2
 
--- 3. [BARU] Tombol Kontrol Replay (AUTO REPLAY: YES / NO)
+-- 3. [MỚI] Tombol Kontrol Replay (AUTO REPLAY: YES / NO)
 ReplayButtonToggle.Name = "ReplayButtonToggle"
 ReplayButtonToggle.Parent = ScreenGui
 ReplayButtonToggle.BackgroundColor3 = _G.AutoReplay and Color3.fromRGB(0, 150, 75) or Color3.fromRGB(180, 40, 40) -- Hijau gelap bawaan aktif
 ReplayButtonToggle.Position = UDim2.new(0.05, 0, 0.34, 0) -- Berada tepat di bawah tombol mode        
 ReplayButtonToggle.Size = UDim2.new(0, 160, 0, 40)
 ReplayButtonToggle.Font = Enum.Font.SourceSansBold
-ReplayButtonToggle.Text = _G.AutoReplay and "AUTO REPLAY: YES" or "AUTO REPLAY: NO"
+ReplayButtonToggle.Text = _G.AutoReplay and "TỰ ĐỘNG CHƠI LẠI: CÓ" or "TỰ ĐỘNG CHƠI LẠI: KHÔNG"
 ReplayButtonToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 ReplayButtonToggle.TextSize = 14
 ReplayButtonToggle.BorderSizePixel = 2
@@ -5917,7 +5928,7 @@ LabelHeight.Size = UDim2.new(0, 160, 0, 16)
 LabelHeight.Position = UDim2.new(0.05, 0, 0.41, 0)
 LabelHeight.BackgroundTransparency = 1
 LabelHeight.Font = Enum.Font.SourceSansBold
-LabelHeight.Text = "HEIGHT DISTANCE: " .. tostring(_G.TinggiMelayang) .. " STUDS"
+LabelHeight.Text = "ĐỘ CAO: " .. tostring(_G.TinggiMelayang) .. " stud"
 LabelHeight.TextColor3 = Color3.fromRGB(255, 255, 255)
 LabelHeight.TextSize = 12
 
@@ -5935,14 +5946,14 @@ SliderHeightButton.Size = UDim2.new(0, 14, 0, 14)
 SliderHeightButton.Position = UDim2.new((_G.TinggiMelayang / 100) - 0.04, 0, -0.6, 0)
 SliderHeightButton.Text = ""
 
--- 4. [BARU] Tombol Kontrol Perfect Forge (PERFECT FORGE: YES / NO)
+-- 4. [MỚI] Tombol Kontrol Perfect Forge (PERFECT FORGE: YES / NO)
 ForgeButtonToggle.Name = "ForgeButtonToggle"
 ForgeButtonToggle.Parent = ScreenGui
 ForgeButtonToggle.BackgroundColor3 = _G.PerfectForge and Color3.fromRGB(150, 120, 0) or Color3.fromRGB(120, 30, 30) -- Warna Emas/Oranye gelap bawaan aktif
 ForgeButtonToggle.Position = UDim2.new(0.05, 0, 0.41, 40) -- Berada tepat di bawah slider Height        
 ForgeButtonToggle.Size = UDim2.new(0, 160, 0, 40)
 ForgeButtonToggle.Font = Enum.Font.SourceSansBold
-ForgeButtonToggle.Text = _G.PerfectForge and "PERFECT FORGE: YES" or "PERFECT FORGE: NO"
+ForgeButtonToggle.Text = _G.PerfectForge and "RÈN HOÀN HẢO: CÓ" or "RÈN HOÀN HẢO: KHÔNG"
 ForgeButtonToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 ForgeButtonToggle.TextSize = 14
 ForgeButtonToggle.BorderSizePixel = 2
@@ -5953,7 +5964,7 @@ AutoBuyButtonToggle.BackgroundColor3 = _G.AutoBuy and Color3.fromRGB(0, 150, 75)
 AutoBuyButtonToggle.Position = UDim2.new(0.05, 0, 0.41, 88)
 AutoBuyButtonToggle.Size = UDim2.new(0, 160, 0, 40)
 AutoBuyButtonToggle.Font = Enum.Font.SourceSansBold
-AutoBuyButtonToggle.Text = _G.AutoBuy and "AUTO BUY: YES" or "AUTO BUY: NO"
+AutoBuyButtonToggle.Text = _G.AutoBuy and "TỰ ĐỘNG MUA: CÓ" or "TỰ ĐỘNG MUA: KHÔNG"
 AutoBuyButtonToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 AutoBuyButtonToggle.TextSize = 14
 AutoBuyButtonToggle.BorderSizePixel = 2
@@ -5964,7 +5975,7 @@ AutoSellButtonToggle.BackgroundColor3 = _G.AutoSell and Color3.fromRGB(0, 150, 7
 AutoSellButtonToggle.Position = UDim2.new(0.05, 0, 0.41, 136)
 AutoSellButtonToggle.Size = UDim2.new(0, 160, 0, 40)
 AutoSellButtonToggle.Font = Enum.Font.SourceSansBold
-AutoSellButtonToggle.Text = _G.AutoSell and "AUTO SELL: YES" or "AUTO SELL: NO"
+AutoSellButtonToggle.Text = _G.AutoSell and "TỰ ĐỘNG BÁN: CÓ" or "TỰ ĐỘNG BÁN: KHÔNG"
 AutoSellButtonToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 AutoSellButtonToggle.TextSize = 14
 AutoSellButtonToggle.BorderSizePixel = 2
@@ -5976,7 +5987,7 @@ AutoSeasonBuyButtonToggle.BackgroundColor3 = _G.AutoSeasonBuy and Color3.fromRGB
 AutoSeasonBuyButtonToggle.Position = UDim2.new(0.05, 0, 0.41, 184)
 AutoSeasonBuyButtonToggle.Size = UDim2.new(0, 160, 0, 40)
 AutoSeasonBuyButtonToggle.Font = Enum.Font.SourceSansBold
-AutoSeasonBuyButtonToggle.Text = _G.AutoSeasonBuy and "SEASON BUY: YES" or "SEASON BUY: NO"
+AutoSeasonBuyButtonToggle.Text = _G.AutoSeasonBuy and "MUA VẬT PHẨM MÙA: CÓ" or "MUA VẬT PHẨM MÙA: KHÔNG"
 AutoSeasonBuyButtonToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 AutoSeasonBuyButtonToggle.TextSize = 14
 AutoSeasonBuyButtonToggle.BorderSizePixel = 2
@@ -5996,7 +6007,7 @@ UpdateStatsLabel()
 local function RefreshHeightSlider()
     local HeightLabel = FarmPosition.VerticalPosition == "Ground" and "GROUND HEIGHT OFFSET" or
                             (FarmPosition.VerticalPosition == "Fly" and "HEIGHT ABOVE ENEMY" or "UNDERGROUND DEPTH")
-    LabelHeight.Text = HeightLabel .. ": " .. tostring(FarmPosition.HeightOffset) .. " STUDS"
+    LabelHeight.Text = HeightLabel .. ": " .. tostring(FarmPosition.HeightOffset) .. " stud"
     SliderHeightButton.Position = UDim2.new((FarmPosition.HeightOffset / 50) - 0.04, 0, -0.6, 0)
 end
 
@@ -6055,13 +6066,13 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- KONEKSI EVENT INTERAKSI KLIK UI
+-- KẾT NỐI SỰ KIỆN TƯƠNG TÁC KHI NHẤN GIAO DIỆN
 MasterButton.MouseButton1Click:Connect(function()
     local Character = LocalPlayer.Character
     local MyRoot = Character and Character:FindFirstChild("HumanoidRootPart")
     if _G.AutoFarm then
         _G.AutoFarm = false
-        MasterButton.Text = "SCRIPT: OFF"
+        MasterButton.Text = "SCRIPT: TẮT"
         MasterButton.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
         Target = nil
         TargetKind = nil
@@ -6075,7 +6086,7 @@ MasterButton.MouseButton1Click:Connect(function()
         TargetKind = nil
         IsEgg = false
         _G.AutoFarm = true
-        MasterButton.Text = "SCRIPT: ON"
+        MasterButton.Text = "SCRIPT: BẬT"
         MasterButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
     end
 end)
@@ -6084,12 +6095,12 @@ ModeButton.MouseButton1Click:Connect(function()
     if _G.UndergroundMode then
         FarmPosition.VerticalPosition = "Fly"
         _G.UndergroundMode = false
-        ModeButton.Text = "MODE: ABOVE MONSTER"
+        ModeButton.Text = "CHẾ ĐỘ: TRÊN QUÁI"
         ModeButton.BackgroundColor3 = Color3.fromRGB(135, 0, 255)
     else
         FarmPosition.VerticalPosition = "Underground"
         _G.UndergroundMode = true
-        ModeButton.Text = "MODE: UNDERGROUND"
+        ModeButton.Text = "CHẾ ĐỘ: DƯỚI ĐẤT"
         ModeButton.BackgroundColor3 = Color3.fromRGB(0, 85, 255)
     end
     RefreshHeightSlider()
@@ -6102,23 +6113,23 @@ end)
 ReplayButtonToggle.MouseButton1Click:Connect(function()
     _G.AutoReplay = not _G.AutoReplay
     if _G.AutoReplay then
-        ReplayButtonToggle.Text = "AUTO REPLAY: YES"
+        ReplayButtonToggle.Text = "TỰ ĐỘNG CHƠI LẠI: CÓ"
         ReplayButtonToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 75) -- Ganti hijau
     else
-        ReplayButtonToggle.Text = "AUTO REPLAY: NO"
+        ReplayButtonToggle.Text = "TỰ ĐỘNG CHƠI LẠI: KHÔNG"
         ReplayButtonToggle.BackgroundColor3 = Color3.fromRGB(180, 40, 40) -- Ganti merah
     end
     SaveConfig()
 end)
 
--- [BARU] Event handler untuk klik tombol Perfect Forge
+-- [MỚI] Event handler untuk klik tombol Perfect Forge
 ForgeButtonToggle.MouseButton1Click:Connect(function()
     _G.PerfectForge = not _G.PerfectForge
     if _G.PerfectForge then
-        ForgeButtonToggle.Text = "PERFECT FORGE: YES"
+        ForgeButtonToggle.Text = "RÈN HOÀN HẢO: CÓ"
         ForgeButtonToggle.BackgroundColor3 = Color3.fromRGB(150, 120, 0) -- Oranye/Emas saat aktif
     else
-        ForgeButtonToggle.Text = "PERFECT FORGE: NO"
+        ForgeButtonToggle.Text = "RÈN HOÀN HẢO: KHÔNG"
         ForgeButtonToggle.BackgroundColor3 = Color3.fromRGB(120, 30, 30) -- Merah tua saat mati
     end
     SaveConfig()
@@ -6127,10 +6138,10 @@ end)
 AutoBuyButtonToggle.MouseButton1Click:Connect(function()
     _G.AutoBuy = not _G.AutoBuy
     if _G.AutoBuy then
-        AutoBuyButtonToggle.Text = "AUTO BUY: YES"
+        AutoBuyButtonToggle.Text = "TỰ ĐỘNG MUA: CÓ"
         AutoBuyButtonToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 75)
     else
-        AutoBuyButtonToggle.Text = "AUTO BUY: NO"
+        AutoBuyButtonToggle.Text = "TỰ ĐỘNG MUA: KHÔNG"
         AutoBuyButtonToggle.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
     end
     SaveConfig()
@@ -6139,10 +6150,10 @@ end)
 AutoSellButtonToggle.MouseButton1Click:Connect(function()
     _G.AutoSell = not _G.AutoSell
     if _G.AutoSell then
-        AutoSellButtonToggle.Text = "AUTO SELL: YES"
+        AutoSellButtonToggle.Text = "TỰ ĐỘNG BÁN: CÓ"
         AutoSellButtonToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 75)
     else
-        AutoSellButtonToggle.Text = "AUTO SELL: NO"
+        AutoSellButtonToggle.Text = "TỰ ĐỘNG BÁN: KHÔNG"
         AutoSellButtonToggle.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
     end
     SaveConfig()
@@ -6151,10 +6162,10 @@ end)
 AutoSeasonBuyButtonToggle.MouseButton1Click:Connect(function()
     _G.AutoSeasonBuy = not _G.AutoSeasonBuy
     if _G.AutoSeasonBuy then
-        AutoSeasonBuyButtonToggle.Text = "SEASON BUY: YES"
+        AutoSeasonBuyButtonToggle.Text = "MUA VẬT PHẨM MÙA: CÓ"
         AutoSeasonBuyButtonToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 75)
     else
-        AutoSeasonBuyButtonToggle.Text = "SEASON BUY: NO"
+        AutoSeasonBuyButtonToggle.Text = "MUA VẬT PHẨM MÙA: KHÔNG"
         AutoSeasonBuyButtonToggle.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
     end
     SaveConfig()
@@ -6211,14 +6222,14 @@ function AutoForge.BuildMenuPage(Context)
     CraftCountInput.BorderSizePixel = 0
     CraftCountInput.ClearTextOnFocus = false
     CraftCountInput.Font = Enum.Font.GothamMedium
-    CraftCountInput.PlaceholderText = "Craft count"
+    CraftCountInput.PlaceholderText = "Số lần chế tạo"
     CraftCountInput.TextColor3 = Theme.Text
     CraftCountInput.TextSize = 12
     CraftCountInput.Parent = Page
     Context.AddCorner(CraftCountInput, 6)
     Context.AddStroke(CraftCountInput)
 
-    local StartButton = Context.CreateButton(Page, "START FORGE")
+    local StartButton = Context.CreateButton(Page, "BẮT ĐẦU RÈN")
     StartButton.Position = UDim2.new(0.48, 0, 0, 68)
     StartButton.Size = UDim2.new(0.52, 0, 0, 30)
 
@@ -6236,7 +6247,7 @@ function AutoForge.BuildMenuPage(Context)
     SearchBox.BorderSizePixel = 0
     SearchBox.ClearTextOnFocus = false
     SearchBox.Font = Enum.Font.Gotham
-    SearchBox.PlaceholderText = "Search ore..."
+    SearchBox.PlaceholderText = "Tìm quặng..."
     SearchBox.PlaceholderColor3 = Theme.Muted
     SearchBox.Text = ""
     SearchBox.TextColor3 = Theme.Text
@@ -6245,13 +6256,13 @@ function AutoForge.BuildMenuPage(Context)
     Context.AddCorner(SearchBox, 6)
     Context.AddStroke(SearchBox)
 
-    local ForgeRarityFilterButton = Context.CreateButton(Page, "RARITY: All ▼")
+    local ForgeRarityFilterButton = Context.CreateButton(Page, "ĐỘ HIẾM: Tất cả ▼")
     ForgeRarityFilterButton.Name = "AutoForgeRarityFilter"
     ForgeRarityFilterButton.Position = UDim2.new(1, -162, 0, 138)
     ForgeRarityFilterButton.Size = UDim2.fromOffset(96, 28)
     ForgeRarityFilterButton.TextSize = 10
 
-    local RefreshButton = Context.CreateButton(Page, "REFRESH")
+    local RefreshButton = Context.CreateButton(Page, "LÀM MỚI")
     RefreshButton.Position = UDim2.new(1, -60, 0, 138)
     RefreshButton.Size = UDim2.fromOffset(60, 28)
     RefreshButton.TextSize = 10
@@ -6314,7 +6325,7 @@ function AutoForge.BuildMenuPage(Context)
     end
 
     local function RefreshForgeRarityFilterButton(Catalog)
-        ForgeRarityFilterButton.Text = "RARITY: " .. ForgeRarityFilterName(AutoForgeRarityFilter, Catalog) .. " ▼"
+        ForgeRarityFilterButton.Text = "ĐỘ HIẾM: " .. ForgeRarityFilterName(AutoForgeRarityFilter, Catalog) .. " ▼"
     end
 
     local function BuildForgeRarityOptions(Catalog)
@@ -6358,12 +6369,12 @@ function AutoForge.BuildMenuPage(Context)
             RelicText = " | RELIC " .. tostring(tonumber(Crystals[Recipe.RelicId]) or 0)
         end
 
-        ToggleButton.Text = _G.AutoForge and "AUTO FORGE: ON" or "AUTO FORGE: OFF"
+        ToggleButton.Text = _G.AutoForge and "TỰ ĐỘNG RÈN: BẬT" or "TỰ ĐỘNG RÈN: TẮT"
         ToggleButton.BackgroundColor3 = _G.AutoForge and Theme.Enabled or Theme.Disabled
         RecipeButton.Text = "  " .. Recipe.Category .. " - " .. Recipe.Label .. " - " .. tostring(Recipe.OreCount) ..
                                 " Ore - " .. tostring(Recipe.Chance) .. "%  \226\150\188"
         if not CraftCountInput:IsFocused() then
-            CraftCountInput.Text = "CRAFT COUNT: " .. tostring(AutoForge.RequestedCrafts)
+            CraftCountInput.Text = "CHẾ TẠO COUNT: " .. tostring(AutoForge.RequestedCrafts)
         end
 
         local Detail = AutoForge.State.Status
@@ -6373,9 +6384,9 @@ function AutoForge.BuildMenuPage(Context)
             Detail = "Adjusted " .. tostring(AutoForge.RequestedCrafts) .. " to " .. tostring(MaxCrafts) ..
                          " - Limited by " .. GetItemDisplayName(LimitingItemId)
         end
-        Summary.Text = "ORE " .. tostring(Total) .. "/" .. tostring(Recipe.OreCount) .. " | MAX " ..
+        Summary.Text = "QUẶNG " .. tostring(Total) .. "/" .. tostring(Recipe.OreCount) .. " | TỐI ĐA " ..
                            tostring(MaxCrafts) .. RelicText .. "\n" .. tostring(Detail)
-        StartButton.Text = AutoForge.State.Running and "STOP AFTER CRAFT" or "START FORGE"
+        StartButton.Text = AutoForge.State.Running and "DỪNG SAU KHI RÈN" or "BẮT ĐẦU RÈN"
         StartButton.BackgroundColor3 = AutoForge.State.Running and Theme.Keep or Theme.Accent
 
         for _, RowState in ipairs(PageState.Rows) do
@@ -6543,10 +6554,10 @@ function AutoForge.BuildTargetsPage(Context)
     local AutoDeleteButton = Context.CreateButton(Page, "")
     AutoDeleteButton.Position = UDim2.fromOffset(0, 34)
     AutoDeleteButton.Size = UDim2.new(1, 0, 0, 30)
-    local AddProfileButton = Context.CreateButton(Page, "ADD PROFILE")
+    local AddProfileButton = Context.CreateButton(Page, "THÊM CẤU HÌNH")
     AddProfileButton.Position = UDim2.fromOffset(0, 68)
     AddProfileButton.Size = UDim2.new(1, 0, 0, 30)
-    local OrderHint = Context.CreateText(Page, "Enabled profiles are checked top-to-bottom. First match wins.", 9, Theme.Muted)
+    local OrderHint = Context.CreateText(Page, "Các cấu hình bật được kiểm tra từ trên xuống. Kết quả khớp đầu tiên sẽ được chọn.", 9, Theme.Muted)
     OrderHint.Position = UDim2.fromOffset(0, 102)
     OrderHint.Size = UDim2.new(1, 0, 0, 18)
 
@@ -6583,7 +6594,7 @@ function AutoForge.BuildTargetsPage(Context)
     Context.AddCorner(Editor, 7)
     Context.AddStroke(Editor, Theme.Accent)
 
-    local EditorTitle = Context.CreateText(Editor, "TARGET PROFILE", 13)
+    local EditorTitle = Context.CreateText(Editor, "CẤU HÌNH MỤC TIÊU", 13)
     EditorTitle.Position = UDim2.fromOffset(8, 0)
     EditorTitle.Size = UDim2.new(1, -16, 0, 28)
     EditorTitle.Font = Enum.Font.GothamBold
@@ -6594,7 +6605,7 @@ function AutoForge.BuildTargetsPage(Context)
     NameInput.BackgroundColor3 = Theme.Surface
     NameInput.BorderSizePixel = 0
     NameInput.ClearTextOnFocus = false
-    NameInput.PlaceholderText = "Profile name"
+    NameInput.PlaceholderText = "Tên cấu hình"
     NameInput.TextColor3 = Theme.Text
     NameInput.Font = Enum.Font.Gotham
     NameInput.TextSize = 12
@@ -6620,16 +6631,16 @@ function AutoForge.BuildTargetsPage(Context)
     SlotCountInput.Parent = Editor
     Context.AddCorner(SlotCountInput, 6)
     Context.AddStroke(SlotCountInput)
-    local PoolPresetButton = Context.CreateButton(Editor, "POOL PRESET: Offensive ▼")
+    local PoolPresetButton = Context.CreateButton(Editor, "MẪU NHÓM CHỈ SỐ: Tấn công ▼")
     PoolPresetButton.Name = "PoolPresetDropdown"
     PoolPresetButton.Position = UDim2.fromOffset(0, 100)
     PoolPresetButton.Size = UDim2.new(1, 0, 0, 30)
     PoolPresetButton.ZIndex = 51
-    local PoolHint = Context.CreateText(Editor, "Preset fills defaults. You can still edit this profile.", 9, Theme.Muted)
+    local PoolHint = Context.CreateText(Editor, "Mẫu sẽ điền giá trị mặc định. Bạn vẫn có thể chỉnh sửa cấu hình này.", 9, Theme.Muted)
     PoolHint.Position = UDim2.fromOffset(4, 132)
     PoolHint.Size = UDim2.new(1, -8, 0, 16)
     PoolHint.ZIndex = 51
-    local PoolTitle = Context.CreateText(Editor, "POOL STATS", 10)
+    local PoolTitle = Context.CreateText(Editor, "CHỈ SỐ NHÓM", 10)
     PoolTitle.Position = UDim2.fromOffset(4, 148)
     PoolTitle.Size = UDim2.new(1, -8, 0, 18)
     PoolTitle.ZIndex = 51
@@ -6677,15 +6688,15 @@ function AutoForge.BuildTargetsPage(Context)
     ErrorLabel.Position = UDim2.new(0, 4, 1, -74)
     ErrorLabel.Size = UDim2.new(1, -8, 0, 18)
     ErrorLabel.ZIndex = 51
-    local AddRuleButton = Context.CreateButton(Editor, "ADD RULE")
+    local AddRuleButton = Context.CreateButton(Editor, "THÊM QUY TẮC")
     AddRuleButton.Position = UDim2.new(0, 0, 1, -48)
     AddRuleButton.Size = UDim2.new(0.34, -3, 0, 30)
     AddRuleButton.ZIndex = 51
-    local SaveButton = Context.CreateButton(Editor, "SAVE")
+    local SaveButton = Context.CreateButton(Editor, "LƯU")
     SaveButton.Position = UDim2.new(0.34, 3, 1, -48)
     SaveButton.Size = UDim2.new(0.33, -3, 0, 30)
     SaveButton.ZIndex = 51
-    local CancelButton = Context.CreateButton(Editor, "CANCEL")
+    local CancelButton = Context.CreateButton(Editor, "HỦY")
     CancelButton.Position = UDim2.new(0.67, 3, 1, -48)
     CancelButton.Size = UDim2.new(0.33, -3, 0, 30)
     CancelButton.ZIndex = 51
@@ -6700,11 +6711,11 @@ function AutoForge.BuildTargetsPage(Context)
     Picker.Parent = Editor
     Context.AddCorner(Picker, 7)
     Context.AddStroke(Picker, Theme.Accent)
-    local PickerTitle = Context.CreateText(Picker, "SELECT", 13)
+    local PickerTitle = Context.CreateText(Picker, "CHỌN", 13)
     PickerTitle.Size = UDim2.new(1, -70, 0, 30)
     PickerTitle.Position = UDim2.fromOffset(8, 0)
     PickerTitle.ZIndex = 61
-    local PickerClose = Context.CreateButton(Picker, "CLOSE")
+    local PickerClose = Context.CreateButton(Picker, "ĐÓNG")
     PickerClose.AnchorPoint = Vector2.new(1, 0)
     PickerClose.Position = UDim2.new(1, 0, 0, 0)
     PickerClose.Size = UDim2.fromOffset(64, 30)
@@ -6776,10 +6787,10 @@ function AutoForge.BuildTargetsPage(Context)
             return
         end
         NameInput.Text = Draft.Name or ""
-        SlotModeButton.Text = "TOTAL SLOTS: " .. (Draft.SlotMode == "Any" and "Any Total Slots" or (Draft.SlotMode == "Exact" and "Exact N Slots" or "At Least N Slots")) .. " ▼"
+        SlotModeButton.Text = "TỔNG SỐ Ô: " .. (Draft.SlotMode == "Any" and "Bất kỳ tổng số ô nào" or (Draft.SlotMode == "Exact" and "Đúng N ô" or "Ít nhất N ô")) .. " ▼"
         SlotCountInput.Text = tostring(Draft.SlotCount or 1)
         SlotCountInput.Visible = Draft.SlotMode ~= "Any"
-        PoolPresetButton.Text = "POOL PRESET: " .. tostring(Draft.PoolPreset or "Offensive") .. " ▼"
+        PoolPresetButton.Text = "MẪU NHÓM CHỈ SỐ: " .. tostring(Draft.PoolPreset or "Offensive") .. " ▼"
         for _, Child in ipairs(PoolList:GetChildren()) do
             if Child:IsA("GuiButton") then
                 Child:Destroy()
@@ -6823,7 +6834,7 @@ function AutoForge.BuildTargetsPage(Context)
             Row.ZIndex = 52
             Row.Parent = RulesList
             Context.AddCorner(Row, 5)
-            local KindButton = Context.CreateButton(Row, Rule.Kind == "PoolAtLeast" and "At Least N From Pool" or (Rule.Kind == "PoolOnly" and "Only From Pool" or "Require Stat"))
+            local KindButton = Context.CreateButton(Row, Rule.Kind == "PoolAtLeast" and "Ít nhất N chỉ số trong nhóm" or (Rule.Kind == "PoolOnly" and "Chỉ dùng chỉ số trong nhóm" or "Yêu cầu chỉ số"))
             KindButton.Name = "RuleTypeDropdown"
             KindButton.Position = UDim2.fromOffset(4, 4)
             KindButton.Size = UDim2.new(0.48, -6, 0, 26)
@@ -6844,7 +6855,7 @@ function AutoForge.BuildTargetsPage(Context)
             MinInput.BackgroundColor3 = Theme.Background
             MinInput.BorderSizePixel = 0
             MinInput.ClearTextOnFocus = false
-            MinInput.Text = Rule.Kind == "PoolOnly" and "ONLY FROM POOL" or tostring(Rule.MinCount or 1)
+            MinInput.Text = Rule.Kind == "PoolOnly" and "CHỈ TRONG NHÓM" or tostring(Rule.MinCount or 1)
             MinInput.TextColor3 = Theme.Text
             MinInput.Font = Enum.Font.Gotham
             MinInput.TextSize = 11
@@ -6893,9 +6904,9 @@ function AutoForge.BuildTargetsPage(Context)
     end
 
     RefreshProfiles = function()
-        TargetModeButton.Text = "TARGET MODE: " .. (AutoForge.TargetMode and "ON" or "OFF")
+        TargetModeButton.Text = "CHẾ ĐỘ MỤC TIÊU: " .. (AutoForge.TargetMode and "ON" or "OFF")
         TargetModeButton.BackgroundColor3 = AutoForge.TargetMode and Theme.Enabled or Theme.Disabled
-        AutoDeleteButton.Text = "AUTO DELETE NON-MATCH: " .. (AutoForge.AutoDeleteNonMatch and "ON" or "OFF")
+        AutoDeleteButton.Text = "TỰ XÓA VẬT PHẨM KHÔNG KHỚP: " .. (AutoForge.AutoDeleteNonMatch and "ON" or "OFF")
         AutoDeleteButton.BackgroundColor3 = AutoForge.AutoDeleteNonMatch and Theme.Keep or Theme.Disabled
         for _, Child in ipairs(ProfileList:GetChildren()) do
             if Child:IsA("Frame") then
@@ -6920,13 +6931,13 @@ function AutoForge.BuildTargetsPage(Context)
                 Profile.ValidationError and Theme.Keep or Theme.Muted)
             Summary.Position = UDim2.fromOffset(6, 32)
             Summary.Size = UDim2.new(1, -12, 0, 18)
-            local Edit = Context.CreateButton(Row, "EDIT")
+            local Edit = Context.CreateButton(Row, "SỬA")
             Edit.Position = UDim2.fromOffset(5, 52)
             Edit.Size = UDim2.new(0.34, -5, 0, 22)
-            local Duplicate = Context.CreateButton(Row, "COPY")
+            local Duplicate = Context.CreateButton(Row, "SAO CHÉP")
             Duplicate.Position = UDim2.new(0.34, 2, 0, 52)
             Duplicate.Size = UDim2.new(0.33, -4, 0, 22)
-            local Delete = Context.CreateButton(Row, "DELETE")
+            local Delete = Context.CreateButton(Row, "XÓA")
             Delete.Position = UDim2.new(0.67, 2, 0, 52)
             Delete.Size = UDim2.new(0.33, -7, 0, 22)
             EnabledButton.Activated:Connect(function()
@@ -7023,7 +7034,7 @@ function AutoForge.BuildTargetsPage(Context)
 end
 
 function _G.BugonBuildV6Menu()
--- V6 NATIVE D3D-STYLE MENU
+-- MENU PHONG CÁCH D3D NGUYÊN BẢN V6
 for _, OldControl in ipairs({MasterButton, ModeButton, ReplayButtonToggle, ForgeButtonToggle, AutoBuyButtonToggle,
                              AutoSellButtonToggle, AutoSeasonBuyButtonToggle, LabelHeight, SliderHeightFrame, StatsLabel}) do
     OldControl.Visible = false
@@ -7195,7 +7206,7 @@ Header.BackgroundColor3 = Theme.Background
 Header.BorderSizePixel = 0
 Header.Parent = D3DPanel
 
-local HeaderTitle = CreateText(Header, "Iron Soul Script by Bugon", 14, Theme.Text)
+local HeaderTitle = CreateText(Header, "Script Iron Soul của Bugon", 14, Theme.Text)
 HeaderTitle.Position = UDim2.fromOffset(14, 0)
 HeaderTitle.Size = UDim2.new(1, -62, 1, 0)
 HeaderTitle.Font = Enum.Font.GothamBold
@@ -7211,16 +7222,16 @@ Navigation.Size = UDim2.new(1, -20, 0, 34)
 Navigation.BackgroundTransparency = 1
 Navigation.Parent = D3DPanel
 
-local FarmTabButton = CreateButton(Navigation, "FARM")
+local FarmTabButton = CreateButton(Navigation, "CÀY")
 FarmTabButton.Name = "FarmTabButton"
 FarmTabButton.Size = UDim2.new(1 / 3, -4, 1, 0)
 
-local UtilityTabButton = CreateButton(Navigation, "UTILITY")
+local UtilityTabButton = CreateButton(Navigation, "TIỆN ÍCH")
 UtilityTabButton.Name = "UtilityTabButton"
 UtilityTabButton.Position = UDim2.new(1 / 3, 2, 0, 0)
 UtilityTabButton.Size = UDim2.new(1 / 3, -4, 1, 0)
 
-local ForgeTabButton = CreateButton(Navigation, "FORGE")
+local ForgeTabButton = CreateButton(Navigation, "RÈN")
 ForgeTabButton.Name = "ForgeTabButton"
 ForgeTabButton.Position = UDim2.new(2 / 3, 4, 0, 0)
 ForgeTabButton.Size = UDim2.new(1 / 3, -4, 1, 0)
@@ -7390,7 +7401,7 @@ local function CreateFarmChoiceRow(Name, Options, GetValue, SetValue)
     return Refresh, SetOpen, Buttons
 end
 
-CreateToggleRow(FarmTab, "Script", function()
+CreateToggleRow(FarmTab, "Bật/tắt script", function()
     return _G.AutoFarm
 end, function(Value)
     local Character = LocalPlayer.Character
@@ -7424,13 +7435,13 @@ end, function(Value)
     FarmPosition.VerticalPosition = Value
     _G.UndergroundMode = Value == "Underground"
     if Value == "Ground" then
-        ModeButton.Text = "MODE: GROUND"
+        ModeButton.Text = "CHẾ ĐỘ: MẶT ĐẤT"
         ModeButton.BackgroundColor3 = Color3.fromRGB(0, 135, 95)
     elseif Value == "Fly" then
-        ModeButton.Text = "MODE: ABOVE MONSTER"
+        ModeButton.Text = "CHẾ ĐỘ: TRÊN QUÁI"
         ModeButton.BackgroundColor3 = Color3.fromRGB(135, 0, 255)
     else
-        ModeButton.Text = "MODE: UNDERGROUND"
+        ModeButton.Text = "CHẾ ĐỘ: DƯỚI ĐẤT"
         ModeButton.BackgroundColor3 = Color3.fromRGB(0, 85, 255)
     end
     RefreshHeightSlider()
@@ -7439,21 +7450,21 @@ end, function(Value)
     end
 end)
 
-CreateToggleRow(FarmTab, "Auto Replay", function()
+CreateToggleRow(FarmTab, "Tự động chơi lại", function()
     return _G.AutoReplay
 end, function(Value)
     _G.AutoReplay = Value
     SaveConfig()
 end)
 
-CreateToggleRow(FarmTab, "Auto Giveup", function()
+CreateToggleRow(FarmTab, "Tự động bỏ cuộc", function()
     return _G.AutoGiveup
 end, function(Value)
     _G.AutoGiveup = Value
     SaveConfig()
 end)
 
-CreateToggleRow(FarmTab, "Auto Rejoin", function()
+CreateToggleRow(FarmTab, "Tự động vào lại", function()
     return _G.AutoRejoin
 end, function(Value)
     _G.AutoRejoin = Value
@@ -7660,7 +7671,7 @@ AutoSkillNetworkFlow.Card.Parent = FarmTab
 AddCorner(AutoSkillNetworkFlow.Card, 6)
 AddStroke(AutoSkillNetworkFlow.Card)
 
-AutoSkillNetworkFlow.Title = CreateText(AutoSkillNetworkFlow.Card, "SKILL NETWORK BURST", 12)
+AutoSkillNetworkFlow.Title = CreateText(AutoSkillNetworkFlow.Card, "TĂNG LƯỢT GỬI KỸ NĂNG", 12)
 AutoSkillNetworkFlow.Title.Position = UDim2.fromOffset(10, 4)
 AutoSkillNetworkFlow.Title.Size = UDim2.new(1, -70, 0, 24)
 AutoSkillNetworkFlow.Value = CreateText(AutoSkillNetworkFlow.Card, "", 12, Theme.Accent,
@@ -7775,21 +7786,21 @@ UtilityNavigation.Size = UDim2.new(1, 0, 0, 32)
 UtilityNavigation.BackgroundTransparency = 1
 UtilityNavigation.Parent = UtilityTab
 
-local DungeonTabButton = CreateButton(UtilityNavigation, "DUNGEON")
+local DungeonTabButton = CreateButton(UtilityNavigation, "PHÓ BẢN")
 DungeonTabButton.Size = UDim2.new(1 / 6, -4, 1, 0)
-local TowerTabButton = CreateButton(UtilityNavigation, "TOWER")
+local TowerTabButton = CreateButton(UtilityNavigation, "THÁP")
 TowerTabButton.Position = UDim2.new(1 / 6, 2, 0, 0)
 TowerTabButton.Size = UDim2.new(1 / 6, -4, 1, 0)
-local GroceryTabButton = CreateButton(UtilityNavigation, "GROCERY")
+local GroceryTabButton = CreateButton(UtilityNavigation, "CỬA HÀNG")
 GroceryTabButton.Position = UDim2.new(2 / 6, 4, 0, 0)
 GroceryTabButton.Size = UDim2.new(1 / 6, -4, 1, 0)
-local SeasonTabButton = CreateButton(UtilityNavigation, "SEASON")
+local SeasonTabButton = CreateButton(UtilityNavigation, "MÙA")
 SeasonTabButton.Position = UDim2.new(3 / 6, 6, 0, 0)
 SeasonTabButton.Size = UDim2.new(1 / 6, -4, 1, 0)
-local AutoSellTabButton = CreateButton(UtilityNavigation, "SELL")
+local AutoSellTabButton = CreateButton(UtilityNavigation, "BÁN")
 AutoSellTabButton.Position = UDim2.new(4 / 6, 8, 0, 0)
 AutoSellTabButton.Size = UDim2.new(1 / 6, -4, 1, 0)
-local PetExpeditionTabButton = CreateButton(UtilityNavigation, "PETS")
+local PetExpeditionTabButton = CreateButton(UtilityNavigation, "THÚ CƯNG")
 PetExpeditionTabButton.Position = UDim2.new(5 / 6, 10, 0, 0)
 PetExpeditionTabButton.Size = UDim2.new(1 / 6, -10, 1, 0)
 
@@ -7803,9 +7814,9 @@ local ForgeNavigation = Instance.new("Frame")
 ForgeNavigation.Size = UDim2.new(1, 0, 0, 32)
 ForgeNavigation.BackgroundTransparency = 1
 ForgeNavigation.Parent = ForgeTab
-local ForgeCraftButton = CreateButton(ForgeNavigation, "CRAFT")
+local ForgeCraftButton = CreateButton(ForgeNavigation, "CHẾ TẠO")
 ForgeCraftButton.Size = UDim2.new(0.5, -3, 1, 0)
-local ForgeTargetsButton = CreateButton(ForgeNavigation, "TARGETS")
+local ForgeTargetsButton = CreateButton(ForgeNavigation, "MỤC TIÊU")
 ForgeTargetsButton.Position = UDim2.new(0.5, 3, 0, 0)
 ForgeTargetsButton.Size = UDim2.new(0.5, -3, 1, 0)
 local ForgePages = Instance.new("Frame")
@@ -7865,7 +7876,7 @@ local function CreateCatalogPage(Name)
     SearchBox.BorderSizePixel = 0
     SearchBox.ClearTextOnFocus = false
     SearchBox.Font = Enum.Font.Gotham
-    SearchBox.PlaceholderText = "Search item..."
+    SearchBox.PlaceholderText = "Tìm vật phẩm..."
     SearchBox.PlaceholderColor3 = Theme.Muted
     SearchBox.Text = ""
     SearchBox.TextColor3 = Theme.Text
@@ -7878,7 +7889,7 @@ local function CreateCatalogPage(Name)
     SearchPadding.PaddingLeft = UDim.new(0, 10)
     SearchPadding.Parent = SearchBox
 
-    local RefreshButton = CreateButton(Page, "REFRESH")
+    local RefreshButton = CreateButton(Page, "LÀM MỚI")
     RefreshButton.AnchorPoint = Vector2.new(1, 0)
     RefreshButton.Position = UDim2.new(1, 0, 0, 0)
     RefreshButton.Size = UDim2.fromOffset(72, 30)
@@ -7933,7 +7944,7 @@ TowerPage.ScrollBarImageColor3 = Theme.Accent
 TowerPage.Visible = false
 TowerPage.Parent = UtilityPages
 
-local AutoJoinEndlessTowerToggle = CreateToggleRow(TowerPage, "Auto Join Endless Tower", function()
+local AutoJoinEndlessTowerToggle = CreateToggleRow(TowerPage, "Tự động vào Tháp Vô Tận", function()
     return _G.AutoJoinEndlessTower
 end, function(Value)
     _G.AutoJoinEndlessTower = Value
@@ -7944,25 +7955,25 @@ end)
 AutoJoinEndlessTowerToggle.Name = "AutoJoinEndlessTowerToggle"
 AutoJoinEndlessTowerToggle.Size = UDim2.new(1, 0, 0, 34)
 
-local EndlessStartingRoundLabel = CreateText(TowerPage, "Starting Round", 11, Theme.Muted)
+local EndlessStartingRoundLabel = CreateText(TowerPage, "Vòng bắt đầu", 11, Theme.Muted)
 EndlessStartingRoundLabel.Position = UDim2.fromOffset(0, 42)
 EndlessStartingRoundLabel.Size = UDim2.new(1, 0, 0, 18)
 local EndlessStartingRoundDropdown, EndlessStartingRoundOptions = CreateSelectorDropdown(TowerPage,
     "EndlessStartingRound", 62)
 
-local EndlessPlayerCountLabel = CreateText(TowerPage, "Player Count", 11, Theme.Muted)
+local EndlessPlayerCountLabel = CreateText(TowerPage, "Số người chơi", 11, Theme.Muted)
 EndlessPlayerCountLabel.Position = UDim2.fromOffset(0, 108)
 EndlessPlayerCountLabel.Size = UDim2.new(1, 0, 0, 18)
 local EndlessPlayerCountDropdown, EndlessPlayerCountOptions = CreateSelectorDropdown(TowerPage,
     "EndlessPlayerCount", 128, true)
 
-local EndlessExtraWeaponLabel = CreateText(TowerPage, "Extra Weapon", 11, Theme.Muted)
+local EndlessExtraWeaponLabel = CreateText(TowerPage, "Vũ khí bổ sung", 11, Theme.Muted)
 EndlessExtraWeaponLabel.Position = UDim2.fromOffset(0, 174)
 EndlessExtraWeaponLabel.Size = UDim2.new(1, 0, 0, 18)
 local EndlessExtraWeaponDropdown, EndlessExtraWeaponOptions = CreateSelectorDropdown(TowerPage,
     "EndlessExtraWeapon", 194, true)
 
-local EndlessStatusLabel = CreateText(TowerPage, "STATUS: OFF", 11, Theme.Muted)
+local EndlessStatusLabel = CreateText(TowerPage, "TRẠNG THÁI: TẮT", 11, Theme.Muted)
 EndlessStatusLabel.Name = "EndlessStatusLabel"
 EndlessStatusLabel.Position = UDim2.fromOffset(0, 240)
 EndlessStatusLabel.Size = UDim2.new(1, 0, 0, 76)
@@ -7984,7 +7995,7 @@ EndlessExtraWeaponDropdown.Activated:Connect(function()
     EndlessExtraWeaponOptions.Visible = not EndlessExtraWeaponOptions.Visible
 end)
 
-AutoEndlessCard.PickToggle = CreateToggleRow(TowerPage, "Auto Pick Offensive Card", function()
+AutoEndlessCard.PickToggle = CreateToggleRow(TowerPage, "Tự chọn thẻ tấn công", function()
     return AutoEndlessCard.Enabled
 end, function(Value)
     AutoEndlessCard.Enabled = Value
@@ -7999,7 +8010,7 @@ AutoEndlessCard.PickToggle.Name = "AutoPickEndlessCardToggle"
 AutoEndlessCard.PickToggle.Position = UDim2.fromOffset(0, 322)
 AutoEndlessCard.PickToggle.Size = UDim2.new(1, -6, 0, 34)
 
-AutoEndlessCard.UnlockToggle = CreateToggleRow(TowerPage, "Unlock Paid Offensive Card", function()
+AutoEndlessCard.UnlockToggle = CreateToggleRow(TowerPage, "Mở khóa thẻ tấn công trả phí", function()
     return AutoEndlessCard.UnlockPaid
 end, function(Value)
     AutoEndlessCard.UnlockPaid = Value
@@ -8009,7 +8020,7 @@ AutoEndlessCard.UnlockToggle.Name = "AutoUnlockEndlessPaidCardToggle"
 AutoEndlessCard.UnlockToggle.Position = UDim2.fromOffset(0, 362)
 AutoEndlessCard.UnlockToggle.Size = UDim2.new(1, -6, 0, 34)
 
-AutoEndlessCard.ReserveLabel = CreateText(TowerPage, "Minimum Gold Reserve", 11, Theme.Muted)
+AutoEndlessCard.ReserveLabel = CreateText(TowerPage, "Lượng vàng dự trữ tối thiểu", 11, Theme.Muted)
 AutoEndlessCard.ReserveLabel.Position = UDim2.fromOffset(0, 402)
 AutoEndlessCard.ReserveLabel.Size = UDim2.new(1, -6, 0, 18)
 AutoEndlessCard.ReserveInput = Instance.new("TextBox")
@@ -8040,7 +8051,7 @@ PetExpeditionPage.BackgroundTransparency = 1
 PetExpeditionPage.Visible = false
 PetExpeditionPage.Parent = UtilityPages
 
-local AutoPetExpeditionToggle = CreateToggleRow(PetExpeditionPage, "Auto Expedition", function()
+local AutoPetExpeditionToggle = CreateToggleRow(PetExpeditionPage, "Tự động thám hiểm", function()
     return _G.AutoPetExpedition
 end, function(Value)
     AutoPetExpedition.SetEnabled(Value, nil)
@@ -8048,7 +8059,7 @@ end)
 AutoPetExpeditionToggle.Name = "AutoPetExpeditionToggle"
 AutoPetExpeditionToggle.Size = UDim2.new(1, 0, 0, 34)
 
-local AutoClaimPetExpeditionToggle = CreateToggleRow(PetExpeditionPage, "Auto Claim Expedition", function()
+local AutoClaimPetExpeditionToggle = CreateToggleRow(PetExpeditionPage, "Tự nhận thưởng thám hiểm", function()
     return _G.AutoClaimPetExpedition
 end, function(Value)
     AutoPetExpedition.SetEnabled(nil, Value)
@@ -8057,7 +8068,7 @@ AutoClaimPetExpeditionToggle.Name = "AutoClaimPetExpeditionToggle"
 AutoClaimPetExpeditionToggle.Position = UDim2.fromOffset(0, 40)
 AutoClaimPetExpeditionToggle.Size = UDim2.new(1, 0, 0, 34)
 
-local PetExpeditionSlotOrderLabel = CreateText(PetExpeditionPage, "Slot Order", 11, Theme.Muted)
+local PetExpeditionSlotOrderLabel = CreateText(PetExpeditionPage, "Thứ tự ô", 11, Theme.Muted)
 PetExpeditionSlotOrderLabel.Position = UDim2.fromOffset(0, 82)
 PetExpeditionSlotOrderLabel.Size = UDim2.new(1, 0, 0, 18)
 
@@ -8078,18 +8089,18 @@ PetExpeditionSlotOrderInput.Parent = PetExpeditionPage
 AddCorner(PetExpeditionSlotOrderInput, 6)
 AddStroke(PetExpeditionSlotOrderInput)
 
-local PetExpeditionChanceLabel = CreateText(PetExpeditionPage, "DAILY CHANCES: --/--", 11, Theme.Text)
+local PetExpeditionChanceLabel = CreateText(PetExpeditionPage, "LƯỢT HẰNG NGÀY: --/--", 11, Theme.Text)
 PetExpeditionChanceLabel.Name = "PetExpeditionChanceLabel"
 PetExpeditionChanceLabel.Position = UDim2.fromOffset(0, 142)
 PetExpeditionChanceLabel.Size = UDim2.new(1, 0, 0, 22)
 
-local PetExpeditionStatusLabel = CreateText(PetExpeditionPage, "STATUS: OFF", 11, Theme.Muted)
+local PetExpeditionStatusLabel = CreateText(PetExpeditionPage, "TRẠNG THÁI: TẮT", 11, Theme.Muted)
 PetExpeditionStatusLabel.Name = "PetExpeditionStatusLabel"
 PetExpeditionStatusLabel.Position = UDim2.fromOffset(0, 168)
 PetExpeditionStatusLabel.Size = UDim2.new(1, 0, 0, 44)
 PetExpeditionStatusLabel.TextWrapped = true
 
-local AutoPetHatchToggle = CreateToggleRow(PetExpeditionPage, "Auto Hatch Egg", function()
+local AutoPetHatchToggle = CreateToggleRow(PetExpeditionPage, "Tự động ấp trứng", function()
     return _G.AutoPetHatch
 end, function(Value)
     AutoPetHatch.SetEnabled(Value)
@@ -8098,7 +8109,7 @@ AutoPetHatchToggle.Name = "AutoPetHatchToggle"
 AutoPetHatchToggle.Position = UDim2.fromOffset(0, 220)
 AutoPetHatchToggle.Size = UDim2.new(1, 0, 0, 34)
 
-local PetHatchStatusLabel = CreateText(PetExpeditionPage, "HATCH: OFF", 11, Theme.Muted)
+local PetHatchStatusLabel = CreateText(PetExpeditionPage, "ẤP TRỨNG: TẮT", 11, Theme.Muted)
 PetHatchStatusLabel.Name = "PetHatchStatusLabel"
 PetHatchStatusLabel.Position = UDim2.fromOffset(0, 260)
 PetHatchStatusLabel.Size = UDim2.new(1, 0, 0, 44)
@@ -8113,9 +8124,9 @@ local function RefreshPetExpeditionUI()
         return AutoPetExpedition.GetRemaining(PetsExpeditionUtil)
     end)
     PetExpeditionChanceLabel.Text = Success and
-        ("DAILY CHANCES: " .. tostring(Remaining) .. "/" .. tostring(Limit)) or "DAILY CHANCES: UNAVAILABLE"
-    PetExpeditionStatusLabel.Text = "STATUS: " .. tostring(AutoPetExpedition.Status)
-    PetHatchStatusLabel.Text = "HATCH: " .. tostring(AutoPetHatch.Status)
+        ("LƯỢT HẰNG NGÀY: " .. tostring(Remaining) .. "/" .. tostring(Limit)) or "DAILY CHANCES: UNAVAILABLE"
+    PetExpeditionStatusLabel.Text = "TRẠNG THÁI: " .. tostring(AutoPetExpedition.Status)
+    PetHatchStatusLabel.Text = "ẤP TRỨNG: " .. tostring(AutoPetHatch.Status)
 end
 
 PetExpeditionSlotOrderInput.FocusLost:Connect(function()
@@ -8128,14 +8139,14 @@ AutoPetExpedition.Refresh = RefreshPetExpeditionUI
 AutoPetHatch.Refresh = RefreshPetExpeditionUI
 RefreshPetExpeditionUI()
 
-local DungeonLabel = CreateText(DungeonPage, "Dungeon", 11, Theme.Muted)
+local DungeonLabel = CreateText(DungeonPage, "Phó bản", 11, Theme.Muted)
 DungeonLabel.Size = UDim2.new(1, 0, 0, 20)
-local DungeonDropdown, DungeonOptions = CreateSelectorDropdown(DungeonPage, "Dungeon", 22)
+local DungeonDropdown, DungeonOptions = CreateSelectorDropdown(DungeonPage, "Phó bản", 22)
 
-local DifficultyLabel = CreateText(DungeonPage, "Difficulty", 11, Theme.Muted)
+local DifficultyLabel = CreateText(DungeonPage, "Độ khó", 11, Theme.Muted)
 DifficultyLabel.Position = UDim2.fromOffset(0, 104)
 DifficultyLabel.Size = UDim2.new(1, 0, 0, 20)
-local DifficultyDropdown, DifficultyOptions = CreateSelectorDropdown(DungeonPage, "Difficulty", 126, true)
+local DifficultyDropdown, DifficultyOptions = CreateSelectorDropdown(DungeonPage, "Độ khó", 126, true)
 DungeonDropdown.Activated:Connect(function()
     DifficultyOptions.Visible = false
     DungeonOptions.Visible = not DungeonOptions.Visible
@@ -8145,7 +8156,7 @@ DifficultyDropdown.Activated:Connect(function()
     DifficultyOptions.Visible = not DifficultyOptions.Visible
 end)
 
-local PartyStatus = CreateText(DungeonPage, "SOLO 1/1 · AFTER AUTO-SELL", 11, Theme.Muted)
+local PartyStatus = CreateText(DungeonPage, "Một mình 1/1 · Sau khi tự động bán", 11, Theme.Muted)
 PartyStatus.Position = UDim2.fromOffset(8, 170)
 PartyStatus.Size = UDim2.new(1, -16, 0, 20)
 
@@ -8154,7 +8165,7 @@ AutoPotionToggle.Name = "AutoPotionToggle"
 AutoPotionToggle.Position = UDim2.fromOffset(0, 196)
 AutoPotionToggle.Size = UDim2.new(1, 0, 0, 32)
 
-local AutoPotionOpen = CreateButton(DungeonPage, "POTIONS")
+local AutoPotionOpen = CreateButton(DungeonPage, "BÌNH THUỐC")
 AutoPotionOpen.Name = "AutoPotionOpen"
 AutoPotionOpen.Position = UDim2.fromOffset(0, 234)
 AutoPotionOpen.Size = UDim2.new(1, 0, 0, 32)
@@ -8170,19 +8181,19 @@ AutoPotionOverlay.Parent = DungeonPage
 AddCorner(AutoPotionOverlay, 7)
 AddStroke(AutoPotionOverlay, Theme.Accent)
 
-local AutoPotionTitle = CreateText(AutoPotionOverlay, "AUTO POTION", 13)
+local AutoPotionTitle = CreateText(AutoPotionOverlay, "TỰ ĐỘNG DÙNG THUỐC", 13)
 AutoPotionTitle.Position = UDim2.fromOffset(8, 0)
 AutoPotionTitle.Size = UDim2.new(1, -148, 0, 30)
 AutoPotionTitle.Font = Enum.Font.GothamBold
 AutoPotionTitle.ZIndex = 41
 
-local AutoPotionRefresh = CreateButton(AutoPotionOverlay, "REFRESH")
+local AutoPotionRefresh = CreateButton(AutoPotionOverlay, "LÀM MỚI")
 AutoPotionRefresh.AnchorPoint = Vector2.new(1, 0)
 AutoPotionRefresh.Position = UDim2.new(1, -66, 0, 0)
 AutoPotionRefresh.Size = UDim2.fromOffset(64, 30)
 AutoPotionRefresh.ZIndex = 41
 
-local AutoPotionClose = CreateButton(AutoPotionOverlay, "CLOSE")
+local AutoPotionClose = CreateButton(AutoPotionOverlay, "ĐÓNG")
 AutoPotionClose.AnchorPoint = Vector2.new(1, 0)
 AutoPotionClose.Position = UDim2.new(1, 0, 0, 0)
 AutoPotionClose.Size = UDim2.fromOffset(60, 30)
@@ -8196,7 +8207,7 @@ AutoPotionSearch.BackgroundColor3 = Theme.Surface
 AutoPotionSearch.BorderSizePixel = 0
 AutoPotionSearch.ClearTextOnFocus = false
 AutoPotionSearch.Font = Enum.Font.Gotham
-AutoPotionSearch.PlaceholderText = "Search potion name or ID..."
+AutoPotionSearch.PlaceholderText = "Tìm tên hoặc ID thuốc..."
 AutoPotionSearch.PlaceholderColor3 = Theme.Muted
 AutoPotionSearch.Text = ""
 AutoPotionSearch.TextColor3 = Theme.Text
@@ -8298,9 +8309,9 @@ local function RefreshAutoPotionUI()
             SelectedCount = SelectedCount + 1
         end
     end
-    AutoPotionToggle.Text = _G.AutoPotion and "AUTO POTION: ON" or "AUTO POTION: OFF"
+    AutoPotionToggle.Text = _G.AutoPotion and "TỰ ĐỘNG DÙNG THUỐC: ON" or "TỰ ĐỘNG DÙNG THUỐC: OFF"
     AutoPotionToggle.BackgroundColor3 = _G.AutoPotion and Theme.Enabled or Theme.Disabled
-    AutoPotionOpen.Text = "POTIONS " .. tostring(SelectedCount) .. " · " .. tostring(AutoPotion.Status)
+    AutoPotionOpen.Text = "BÌNH THUỐC " .. tostring(SelectedCount) .. " · " .. tostring(AutoPotion.Status)
     if AutoPotionOverlay.Visible then
         BuildAutoPotionRows()
     end
@@ -8374,7 +8385,7 @@ TargetFoundModal.ZIndex = 80
 TargetFoundModal.Parent = Content
 AddCorner(TargetFoundModal, 8)
 AddStroke(TargetFoundModal, Theme.Enabled, 2)
-local TargetFoundTitle = CreateText(TargetFoundModal, "TARGET FOUND", 18, Theme.Enabled, Enum.TextXAlignment.Center)
+local TargetFoundTitle = CreateText(TargetFoundModal, "ĐÃ TÌM THẤY MỤC TIÊU", 18, Theme.Enabled, Enum.TextXAlignment.Center)
 TargetFoundTitle.Position = UDim2.fromOffset(10, 14)
 TargetFoundTitle.Size = UDim2.new(1, -20, 0, 32)
 TargetFoundTitle.Font = Enum.Font.GothamBold
@@ -8385,7 +8396,7 @@ TargetFoundText.Size = UDim2.new(1, -28, 1, -116)
 TargetFoundText.TextWrapped = true
 TargetFoundText.TextYAlignment = Enum.TextYAlignment.Top
 TargetFoundText.ZIndex = 81
-local TargetFoundClose = CreateButton(TargetFoundModal, "CLOSE")
+local TargetFoundClose = CreateButton(TargetFoundModal, "ĐÓNG")
 TargetFoundClose.AnchorPoint = Vector2.new(0.5, 1)
 TargetFoundClose.Position = UDim2.new(0.5, 0, 1, -14)
 TargetFoundClose.Size = UDim2.new(0.6, 0, 0, 34)
@@ -8401,7 +8412,7 @@ local function RefreshTargetFoundModal()
         table.insert(CountParts, tostring(StatId) .. " x" .. tostring(Count))
     end
     table.sort(CountParts)
-    TargetFoundText.Text = "PROFILE\n" .. tostring(Data.ProfileName) .. "\n\nITEM\n" ..
+    TargetFoundText.Text = "CẤU HÌNH\n" .. tostring(Data.ProfileName) .. "\n\nVẬT PHẨM\n" ..
         GetItemDisplayName(Data.ItemId) .. "\n\nATTEMPT " .. tostring(Data.Attempt) .. " · SLOTS " ..
         tostring(Data.Summary and Data.Summary.TotalSlots or 0) .. "\n" .. table.concat(CountParts, "\n") ..
         "\n\nAUTOMATICALLY ACCEPTED"
@@ -8511,7 +8522,7 @@ local function BuildEndlessTowerPage()
     EndlessExtraWeaponDropdown.Text = "  " .. SelectedWeaponLabel .. "  \226\150\188"
 
     local ResolvedStartingRound = AutoEndlessTower.ResolveStartingRound()
-    EndlessStatusLabel.Text = "STATUS: " .. tostring(AutoEndlessTower.Status) .. "\nHIGHEST ROUND: " ..
+    EndlessStatusLabel.Text = "TRẠNG THÁI: " .. tostring(AutoEndlessTower.Status) .. "\nVÒNG CAO NHẤT: " ..
                                   tostring(MaxRound) .. " · NEXT START: " .. tostring(ResolvedStartingRound) ..
                                   "\nWEAPON: " .. tostring(AutoEndlessExtraWeapon.Status) .. "\nCARD: " ..
                                   tostring(AutoEndlessCard.Status)
@@ -8748,7 +8759,7 @@ local function RarityDisplayName(Level, Catalog)
 end
 
 local function RefreshRarityButton(Catalog)
-    RarityButton.Text = "  Sell Max Rarity: " .. RarityDisplayName(SellMaxRarity, Catalog) .. "  ▼"
+    RarityButton.Text = "  Bán độ hiếm tối đa: " .. RarityDisplayName(SellMaxRarity, Catalog) .. "  ▼"
 end
 
 local function BuildRarityOptions(Catalog)
@@ -8818,7 +8829,7 @@ local function CreateOreModeRow(Entry)
         ModeLabel.Text = Mode
         ModeLabel.BackgroundColor3 = Mode == "SELL" and Theme.Sell or Mode == "KEEP" and Theme.Keep or Theme.Accent
     end
-    -- AUTO -> SELL -> KEEP -> AUTO
+    -- TỰ ĐỘNG -> BÁN -> GIỮ -> TỰ ĐỘNG
     Row.Activated:Connect(function()
         local Mode = OreSellModes[Entry.ItemId] or "AUTO"
         if Mode == "AUTO" then
@@ -8857,12 +8868,12 @@ end)
 pcall(BuildGroceryPage, false)
 pcall(BuildSeasonPage, false)
 pcall(BuildAutoSellPage, false)
-print("[Bugon V6] menu ready")
+print("[Bugon V6] giao diện đã sẵn sàng")
 end
 
 task.spawn(function()
     local Success, ErrorMessage = pcall(_G.BugonBuildV6Menu)
     if not Success then
-        warn("[Bugon V6] menu error: " .. tostring(ErrorMessage))
+        warn("[Bugon V6] lỗi giao diện: " .. tostring(ErrorMessage))
     end
 end)
