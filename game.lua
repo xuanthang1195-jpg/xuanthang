@@ -1578,6 +1578,7 @@ end
 
 local function updateAutoAvoid(dt)
     if not Config.AutoAvoid
+        or State.StageBusy
         or State.EmergencyBusy
         or not State.Root
         or not State.Humanoid then
@@ -3092,9 +3093,7 @@ connect(RunService.Heartbeat, function(dt)
 
     if State.EmergencyBusy then
         State.CurrentAction = "Emergency Escape"
-    elseif Config.AutoAvoid then
-        -- Keep scanning even when no danger has been detected yet.
-        -- This also lets dodge movement interrupt stage navigation when needed.
+    elseif Config.AutoAvoid and State.DangerPart then
         updateAutoAvoid(dt)
     elseif Config.AutoProgressStage and State.StageBusy then
         -- moveToNextStage sets more specific action text such as
